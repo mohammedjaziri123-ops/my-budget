@@ -6,9 +6,9 @@ import pandas as pd
 import streamlit as st
 
 # إعدادات الصفحة الأساسية وتصميم الواجهة باسم التطبيق My Budget
-st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الأبدي", page_icon="💰", layout="wide")
+st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الأبدي 23.0", page_icon="💰", layout="wide")
 
-# تطبيق نمط الاتجاه من اليمين لليسار وتنسيق الجدول والخطوط إنجليزية الأرقام
+# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق الجدول والخطوط
 st.markdown("""
     <style>
     .block-container { text-align: right; direction: rtl; padding-top: 1rem !important; }
@@ -17,14 +17,14 @@ st.markdown("""
     [data-testid="stSidebar"] { text-align: right; direction: rtl; background-color: #1A1A1A; }
     .login-box { background-color: #262626; padding: 30px; border-radius: 15px; border: 1px solid #404040; margin-top: 20px; }
     
-    /* 🌟 تصميم الجدول الصارم لضمان المظهر الأفقي للتقويم على الجوال */
+    /* 🌟 تصميم الجدول الصارم لضمان المظهر الأفقي الكامل للتقويم على الجوال */
     .html-cal-table { width: 100% !important; border-collapse: collapse !important; direction: rtl !important; margin-top: 15px; margin-bottom: 20px; }
-    .html-cal-table th { background-color: #1A1A1A !important; color: #4CAF50 !important; font-weight: bold !important; text-align: center !important; padding: 8px 2px !important; border: 1px solid #333 !important; font-size: 13px !important; }
-    .html-cal-table td { width: 14.28% !important; background-color: #262626 !important; border: 1px solid #444 !important; vertical-align: top !important; padding: 6px !important; height: 110px !important; }
+    .html-cal-table th { background-color: #1A1A1A !important; color: #4CAF50 !important; font-weight: bold !important; text-align: center !important; padding: 10px 2px !important; border: 1px solid #333 !important; font-size: 14px !important; }
+    .html-cal-table td { width: 14.28% !important; background-color: #262626 !important; border: 1px solid #444 !important; vertical-align: top !important; padding: 8px !important; height: 115px !important; }
     
-    .day-num-style { font-weight: bold !important; font-size: 14px !important; color: #FFFFFF !important; text-align: right !important; font-family: 'Arial', sans-serif !important; margin-bottom: 4px; }
-    .box-inc-style { background-color: rgba(76, 175, 80, 0.12) !important; border: 1px solid rgba(76, 175, 80, 0.3) !important; border-radius: 4px !important; padding: 3px 1px !important; color: #4CAF50 !important; font-size: 10px !important; text-align: center !important; font-weight: bold !important; margin-bottom: 4px; }
-    .box-exp-style { background-color: rgba(244, 67, 54, 0.12) !important; border: 1px solid rgba(244, 67, 54, 0.3) !important; border-radius: 4px !important; padding: 3px 1px !important; color: #F44336 !important; font-size: 10px !important; text-align: center !important; font-weight: bold !important; }
+    .day-num-style { font-weight: bold !important; font-size: 15px !important; color: #FFFFFF !important; text-align: right !important; font-family: 'Arial', sans-serif !important; margin-bottom: 6px; }
+    .box-inc-style { background-color: rgba(76, 175, 80, 0.12) !important; border: 1px solid rgba(76, 175, 80, 0.3) !important; border-radius: 5px !important; padding: 4px 2px !important; color: #4CAF50 !important; font-size: 11px !important; text-align: center !important; font-weight: bold !important; margin-bottom: 6px; }
+    .box-exp-style { background-color: rgba(244, 67, 54, 0.12) !important; border: 1px solid rgba(244, 67, 54, 0.3) !important; border-radius: 5px !important; padding: 4px 2px !important; color: #F44336 !important; font-size: 11px !important; text-align: center !important; font-weight: bold !important; }
     
     /* تنسيق الكروت الأسبوعية المصطفة */
     .week-row-grid { display: grid; grid-template-columns: 1.5fr 2fr 2fr 2fr; gap: 8px; direction: rtl; margin-bottom: 6px; align-items: center; }
@@ -49,7 +49,6 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS financial_data 
                  (email TEXT, category TEXT, name TEXT, amount REAL, remaining_months INTEGER, start_month_val INTEGER, year_month TEXT, PRIMARY KEY (email, category, name, year_month))''')
     
-    # ضمان وجود معرف تلقائي غير مقيد لمنع الكتابة فوق العمليات اليومية المتعددة
     try:
         c.execute("SELECT id FROM daily_income_records LIMIT 1")
     except sqlite3.OperationalError:
@@ -196,7 +195,6 @@ menu_selection = st.sidebar.radio(
     ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "🗓️ التقويم والحصيلة الشهرية", "📌 الأهداف والالتزامات المرنة", "📊 لوحة التحليلات والاتجاهات"]
 )
 
-# جلب معطيات الجداول التاريخية المجردة الحقيقية 100%
 df_daily_inc_records = get_daily_income_records(user_key)
 df_daily_exp_records = get_daily_expense_records(user_key)
 all_fixed_data_df = get_all_fixed_data_for_user(user_key, "fixed")
@@ -302,7 +300,7 @@ elif menu_selection == "💳 الالتزامات والأقساط":
             st.rerun()
 
 # ==============================================================================
-# 🗓️ 3. قسم التقويم والحصيلة الشهرية (🔥 قفل برمجياً على هيئة جدول HTML حقيقي صارم للـ 7 أيام)
+# 🗓️ 3. قسم التقويم والحصيلة الشهرية (🔥 تم إصلاح النص وبناء الجدول بالكامل)
 # ==============================================================================
 elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
     st.header("🗓️ لوحة التقويم والحصيلة الشهرية المخصصة")
@@ -311,9 +309,7 @@ elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
     months_arabic_names = {"01": "يناير", "02": "فبراير", "03": "مارس", "04": "أبريل", "05": "مايو", "06": "يونيو", "07": "يوليو", "08": "أغسطس", "09": "سبتمبر", "10": "أكتوبر", "11": "نوفمبر", "12": "ديسمبر"}
     selected_month_code = st.selectbox("📅 اختر الشهر المطلوب لاستعراض التقويم المالي الفعلي:", options=list(months_arabic_names.keys()), index=int(current_date.month) - 1, format_func=lambda x: months_arabic_names[x])
     selected_ym_str = f"{current_year_str}-{selected_month_code}"
-    selected_month_val = int(current_year_str) * 12 + int(selected_month_code)
     
-    # حساب الحصيلة الحقيقية المجردة للشهر المختار دون أي فرضيات
     sel_fixed_db = get_user_data_monthly(user_key, "fixed", selected_ym_str)
     sel_fixed_inc_total = sum(item['amount'] for item in sel_fixed_db)
     
@@ -323,12 +319,13 @@ elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
             if inst_row['year_month'] == selected_ym_str:
                 sel_inst_total += inst_row['amount']
                 
-    cal = calendar.Calendar(firstweekday=5) # يبدأ السبت
+    cal = calendar.Calendar(firstweekday=5) # يبدأ السبت أفقياً
     month_days = cal.monthdayscalendar(int(current_year_str), int(selected_month_code))
     
-    # 🌟 بناء جدول HTML صلب ومقاوم لانهيار شاشات الجوال ليعرض الـ 7 أيام بصف أفقي واحد
+    # 🌟 بناء الكود الصافي النقي بدون تداخل في علامات الاقتباس وبشكل متكامل لجميع الأيام
     html_code = '<table class="html-cal-table">'
-    html_code += '<tr><th>السبت</th><th>الأحد</th><th>الإثنين</th><th>الثلاثاء</th><th>الأربعاء</th><th>الخميس</th><th>الجمعة</th></tr>'
+    html_code += '<thead><tr><th>السبت</th><th>الأحد</th><th>الإثنين</th><th>الثلاثاء</th><th>الأربعاء</th><th>الخميس</th><th>الجمعة</th></tr></thead>'
+    html_code += '<tbody>'
     
     for week in month_days:
         html_code += '<tr>'
@@ -343,16 +340,16 @@ elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
                 inc_text = f"+{day_inc:,.0f} ريال" if day_inc > 0 else "---"
                 exp_text = f"-{day_exp:,.0f} ريال" if day_exp > 0 else "---"
                 
-                html_code += f"""
-                    <td>
-                        <div class="day-num-style">{day}</div>
-                        <div class="box-inc-style">المدخول: {inc_text}</div>
-                        <div class="box-exp-style">المصروف: {exp_text}</div>
-                    </td>
-                """
+                html_code += '<td>'
+                html_code += f'<div class="day-num-style">{day}</div>'
+                html_code += f'<div class="box-inc-style">المدخول: {inc_text}</div>'
+                html_code += f'<div class="box-exp-style">المصروف: {exp_text}</div>'
+                html_code += '</td>'
         html_code += '</tr>'
-    html_code += '</table>'
+        
+    html_code += '</tbody></table>'
     
+    # عرض الجدول الصافي
     st.markdown(html_code, unsafe_allow_html=True)
     
     sel_daily_inc = df_daily_inc_records[(df_daily_inc_records['date'] >= f"{selected_ym_str}-01") & (df_daily_inc_records['date'] <= f"{selected_ym_str}-31")]['amount'].sum() if not df_daily_inc_records.empty else 0.0
@@ -396,7 +393,7 @@ elif menu_selection == "📌 الأهداف والالتزامات المرنة"
                 st.success("✅ تم توثيق السلعة في قائمة الرغبات!")
                 st.rerun()
 
-# --- 5. لوحة التحليلات والاتجاهات (تجميع تاريخي خالص خالي من التوقعات تماماً) ---
+# --- 5. لوحة التحليلات والاتجاهات ---
 elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     st.header("📊 لوحة تحليلات الفترات الزمنية والاتجاهات الفعليّة")
     st.write("---")
@@ -451,7 +448,6 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     
     with t_q:
         st.write(f"### 📐 الحصيلة التراكمية التاريخية لـ {q_name}")
-        # جمع الدخل الثابت المسجل فقط بيدك في شهور الربع الحالي دون أي ضرب أو توقعات
         q_f_inc = all_fixed_data_df[all_fixed_data_df['year_month'].isin(q_months)]['amount'].sum() if not all_fixed_data_df.empty else 0.0
         q_f_exp = all_installments_df[all_installments_df['year_month'].isin(q_months)]['amount'].sum() if not all_installments_df.empty else 0.0
         
@@ -468,7 +464,6 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
         
     with t_y:
         st.write(f"### 🎆 السجل التاريخي الحقيقي المجمع لعام {current_year_str} م كاملة")
-        # جمع التاريخ الفعلي المدخل فقط طوال السنة منذ يناير لضمان انتفاء التنبؤات والافتراضات كلياً
         y_f_inc = all_fixed_data_df[all_fixed_data_df['year_month'].str.startswith(current_year_str)]['amount'].sum() if not all_fixed_data_df.empty else 0.0
         y_f_exp = all_installments_df[all_installments_df['year_month'].str.startswith(current_year_str)]['amount'].sum() if not all_installments_df.empty else 0.0
         
