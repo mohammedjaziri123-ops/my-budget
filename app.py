@@ -1,34 +1,40 @@
 import os
 import sqlite3
-from datetime import datetime
+import calendar
+from datetime import datetime, timedelta
 import pandas as pd
 import plotly.express as px
 import openpyxl
 import streamlit as st
 
 # إعدادات الصفحة الأساسية وتصميم الواجهة باسم التطبيق My Budget
-st.set_page_config(page_title="تطبيق My Budget الاحترافي 5.0", page_icon="💰", layout="wide")
+st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الدائم 12.0", page_icon="💰", layout="wide")
 
-# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق الواجهة الرئيسية والنوافذ
+# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق الواجهة والتقويم والتنبيهات
 st.markdown("""
     <style>
-    /* تنسيق المحتوى بالكامل ليدعم العربية */
     .block-container { text-align: right; direction: rtl; }
     h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown { text-align: right; direction: rtl; }
-    
-    /* تنسيق الأزرار الرئيسية */
     .stButton>button { width: 100%; border-radius: 10px; background-color: #2E7D32; color: white; font-weight: bold; height: 45px; }
-    
-    /* تنسيق القائمة الجانبية */
     [data-testid="stSidebar"] { text-align: right; direction: rtl; background-color: #1A1A1A; }
-    
-    /* حاوية مخصصة لشاشة الدخول في المنتصف */
     .login-box { background-color: #262626; padding: 30px; border-radius: 15px; border: 1px solid #404040; margin-top: 20px; }
+    .stDataFrame { direction: rtl; text-align: right; }
+    
+    /* تنسيق مربعات أيام التقويم المالي الذكي */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; direction: rtl; margin-bottom: 25px; }
+    .cal-header { background-color: #1A1A1A; padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; color: #4CAF50; }
+    .cal-day { background-color: #262626; border: 1px solid #404040; border-radius: 8px; padding: 8px; min-height: 90px; display: flex; flex-direction: column; justify-content: space-between; }
+    .cal-day-num { font-weight: bold; font-size: 14px; color: #888; border-bottom: 1px solid #333; padding-bottom: 2px; }
+    .cal-inc { color: #4CAF50; font-size: 12px; font-weight: bold; text-align: center; margin-top: 4px; }
+    .cal-exp { color: #F44336; font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 4px; }
+    .cal-empty { background-color: transparent; border: none; }
     </style>
     """, unsafe_allow_html=True)
 
-# ربط التطبيق بالتاريخ الحالي الفعلي لعام 2026
+# ربط التطبيق بتاريخ اليوم الفعلي لعام 2026
 current_date = datetime.now()
+current_year_str = str(current_date.year)
+current_total_months = current_date.year * 12 + current_date.month
 
 # --- إعداد وإنشاء قاعدة البيانات المحلية المدمجة بالسيرفر لحفظ البيانات للأبد ---
 DB_FILE = "my_budget_storage.db"
@@ -38,49 +44,114 @@ def init_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, password TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS financial_data 
-                 (email TEXT, category TEXT, name TEXT, amount REAL, remaining_months INTEGER, PRIMARY KEY (email, category, name))''')
+                 (email TEXT, category TEXT, name TEXT, amount REAL, remaining_months INTEGER, start_month_val INTEGER, year_month TEXT, PRIMARY KEY (email, category, name, year_month))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS daily_income_records 
+                 (email TEXT, date TEXT, source TEXT, amount REAL, PRIMARY KEY (email, date, source))''')
+    c.execute('''CREATE TABLE IF NOT EXISTS daily_expense_records 
+                 (email TEXT, date TEXT, item TEXT, amount REAL, PRIMARY KEY (email, date, item))''')
+    
+    # تحديث جدول الالتزامات المرنة ليدعم حقول التاريخ الجديدة والمشتريات بدقة
+    c.execute('''CREATE TABLE IF NOT EXISTS flexible_goals_v2 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, type TEXT, name TEXT, amount REAL, target_date TEXT, is_done INTEGER DEFAULT 0)''')
     conn.commit()
     conn.close()
 
 init_db()
 
-def get_user_data(email, category):
+# دوال مساعدة لنسخة الالتزامات المرنة المحدثة
+def get_flexible_items_v2(email, type_str):
     conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT name, amount, remaining_months FROM financial_data WHERE email=? AND category=?", conn, params=(email, category))
+    df = pd.read_sql_query("SELECT id, name, amount, target_date, is_done FROM flexible_goals_v2 WHERE email=? AND type=?", conn, params=(email, type_str))
     conn.close()
     return df.to_dict(orient='records')
 
-def save_user_item(email, category, name, amount, remaining_months=0):
+def add_flexible_item_v2(email, type_str, name, amount, target_date_str):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute('''INSERT OR REPLACE INTO financial_data (email, category, name, amount, remaining_months) 
-                 VALUES (?, ?, ?, ?, ?)''', (email, category, name, amount, remaining_months))
+    c.execute("INSERT INTO flexible_goals_v2 (email, type, name, amount, target_date, is_done) VALUES (?, ?, ?, ?, ?, 0)", (email, type_str, name, amount, target_date_str))
     conn.commit()
     conn.close()
+
+def update_flexible_status_v2(item_id, is_done_val):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("UPDATE flexible_goals_v2 SET is_done=? WHERE id=?", (is_done_val, item_id))
+    conn.commit()
+    conn.close()
+
+def get_user_data_monthly(email, category, ym_str):
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query("SELECT name, amount, remaining_months, start_month_val FROM financial_data WHERE email=? AND category=? AND year_month=?", conn, params=(email, category, ym_str))
+    conn.close()
+    return df.to_dict(orient='records')
+
+def save_user_item_monthly(email, category, name, amount, remaining_months=0, start_month_val=0, ym_str=""):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''INSERT OR REPLACE INTO financial_data (email, category, name, amount, remaining_months, start_month_val, year_month) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)''', (email, category, name, amount, remaining_months, start_month_val, ym_str))
+    conn.commit()
+    conn.close()
+
+def save_daily_income(email, date_str, source, amount):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''INSERT OR REPLACE INTO daily_income_records (email, date, source, amount) 
+                 VALUES (?, ?, ?, ?)''', (email, date_str, source, amount))
+    conn.commit()
+    conn.close()
+
+def save_daily_expense(email, date_str, item, amount):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''INSERT OR REPLACE INTO daily_expense_records (email, date, item, amount) 
+                 VALUES (?, ?, ?, ?)''', (email, date_str, item, amount))
+    conn.commit()
+    conn.close()
+
+def get_daily_income_records(email):
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query("SELECT date, source, amount FROM daily_income_records WHERE email=?", conn, params=(email,))
+    conn.close()
+    return df
+
+def get_daily_expense_records(email):
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query("SELECT date, item, amount FROM daily_expense_records WHERE email=?", conn, params=(email,))
+    conn.close()
+    return df
+
+def get_all_fixed_data_for_user(email, category):
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql_query("SELECT name, amount, year_month FROM financial_data WHERE email=? AND category=?", conn, params=(email, category))
+    conn.close()
+    return df
 
 def clear_user_data(email):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute("DELETE FROM financial_data WHERE email=?", (email,))
+    c.execute("DELETE FROM daily_income_records WHERE email=?", (email,))
+    c.execute("DELETE FROM daily_expense_records WHERE email=?", (email,))
+    c.execute("DELETE FROM flexible_goals_v2 WHERE email=?", (email,))
     conn.commit()
     conn.close()
 
-# تهيئة حالة تسجيل الدخول
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'user_email' not in st.session_state:
     st.session_state.user_email = ""
 
+this_month_ym = current_date.strftime('%Y-%m')
+
 # ==============================================================================
-# 🔐 شاشة الدخول الرئيسية (تظهر في وسط الصفحة مباشرة عند فتح الموقع)
+# 🔐 شاشة الدخول الرئيسية
 # ==============================================================================
 if not st.session_state.logged_in:
     st.title("💰 مرحباً بك في تطبيق My Budget")
     st.subheader("الرجاء تسجيل الدخول أو إنشاء حساب جديد للوصول إلى ميزانيتك المحفوظة للأبد")
     
-    # صندوق تسجيل الدخول المنسق
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
-    
     email_input = st.text_input("📧 بريد الجيميل الخاص بك (Gmail):", placeholder="example@gmail.com")
     password_input = st.text_input("🔑 كلمة المرور:", type="password", placeholder="أدخل كلمة المرور الخاصة بك")
     
@@ -97,28 +168,23 @@ if not st.session_state.logged_in:
                     st.session_state.user_email = email_input
                     st.rerun()
                 else:
-                    st.error("⚠️ كلمة المرور التي أدخلتها خاطئة، يرجى المحاولة مرة أخرى.")
+                    st.error("⚠️ كلمة المرور خاطئة")
             else:
-                # إنشاء حساب جديد تلقائياً إذا كان الإيميل يدخل أول مرة
                 c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email_input, password_input))
                 conn.commit()
                 st.session_state.logged_in = True
                 st.session_state.user_email = email_input
-                st.success("🎉 تم إنشاء حسابك الجديد بنجاح!")
+                st.success("🎉 تم إنشاء حسابك بنجاح!")
                 st.rerun()
             conn.close()
-        else:
-            st.error("🛑 فضلاً، قم بتعبئة حقل البريد الإلكتروني وكلمة المرور أولاً.")
-            
     st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()  # إيقاف تشغيل باقي الموقع حتى يتم تسجيل الدخول بنجاح
+    st.stop()
 
 # ==============================================================================
-# 🔓 واجهة التطبيق الكاملة (تفتح فقط وتظهر القائمة الجانبية بعد تسجيل الدخول)
+# 🔓 واجهة التطبيق بعد تسجيل الدخول
 # ==============================================================================
 user_key = st.session_state.user_email
 
-# معلومات المستخدم في الشريط الجانبي بعد الدخول
 st.sidebar.success(f"👤 متصل بـ: {st.session_state.user_email}")
 if st.sidebar.button("🚪 تسجيل الخروج"):
     st.session_state.logged_in = False
@@ -127,158 +193,221 @@ if st.sidebar.button("🚪 تسجيل الخروج"):
 
 st.sidebar.write("---")
 
-# تحميل البيانات الحية من قاعدة البيانات الدائمة للمستخدم
-fixed_db = get_user_data(user_key, "fixed")
-daily_inc_db = get_user_data(user_key, "daily_income")
-daily_exp_db = get_user_data(user_key, "daily_expense")
-installments_db = get_user_data(user_key, "installments")
+fixed_db = get_user_data_monthly(user_key, "fixed", this_month_ym)
+installments_db = get_user_data_monthly(user_key, "installments", this_month_ym)
 
 fixed_incomes = fixed_db if fixed_db else [{"name": "الراتب الأساسي", "amount": 10000.0}]
-daily_incomes = daily_inc_db if daily_inc_db else [{"name": "أوبر / عمل حر", "amount": 250.0}]
-daily_expenses = daily_exp_db if daily_exp_db else [{"name": "المشتريات اليومية", "amount": 50.0}]
-installments = installments_db if installments_db else [{"name": "قسط تابي", "amount": 400.0, "remaining_months": 4}]
+installments = installments_db if installments_db else []
 
-# شريط التنقل الجانبي لأقسام التطبيق
 st.sidebar.title("🎛️ My Budget - الأقسام")
 menu_selection = st.sidebar.radio(
     "انتقل بين أقسام ميزانيتك المحفوظة:",
-    ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "📊 لوحة التحليلات والاتجاهات"]
+    ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "📌 الأهداف والالتزامات المرنة", "📊 لوحة التحليلات والاتجاهات"]
 )
 
-if current_date.month in [1, 2, 3]: q = "الربع الأول (Q1)"
-elif current_date.month in [4, 5, 6]: q = "الربع الثاني (Q2)"
-elif current_date.month in [7, 8, 9]: q = "الربع الثالث (Q3)"
-else: q = "الربع الرابع (Q4)"
-st.sidebar.caption(f"تتبع مالي مستمر لـ: **{q}**")
-
-# --- 1. صفحة المصروفات والدخل اليومي ---
+# --- 1. صفحة المصروفات والدخل اليومي الفعلي ---
 if menu_selection == "🛒 المصروفات والدخل اليومي":
-    st.header("🛒 قسم المصروفات والدخل اليومي - My Budget")
-    st.caption("🔒 البيانات هنا تُحفظ في حسابك على السيرفر فوراً وللأبد.")
+    st.header("🛒 قسم المصروفات والدخل اليومي الفعلي - My Budget")
     st.write("---")
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.subheader("💵 مصادر الدخل اليومي (المتغير)")
-        for i, vinc in enumerate(daily_incomes):
-            c1, c2 = st.columns([2, 1])
-            name = c1.text_input(f"مصدر الدخل اليومي {i+1}", value=vinc['name'], key=f"d_inc_n_{i}")
-            amount = c2.number_input(f"المعدل اليومي {i+1}", min_value=0.0, value=float(vinc['amount']), key=f"d_inc_v_{i}")
-            save_user_item(user_key, "daily_income", name, amount)
-            
-        if st.button("➕ أضف مصدر دخل يومي جديد"):
-            save_user_item(user_key, "daily_income", f"مصدر جديد {len(daily_incomes)+1}", 0.0)
-            st.rerun()
-            
-        buffer_percent = st.slider("🛡️ نسبة استقطاع وسادة الأمان للطوارئ من الدخل اليومي (%):", min_value=0, max_value=50, value=10)
+        st.subheader("💵 إدخال الدخل اليومي الفعلي")
+        inc_source = st.text_input("🚀 مصدر الدخل الفوري:", value="أوبر", key="inc_src_key")
+        inc_amount = st.number_input("💰 المبلغ (ريال):", min_value=0.0, value=0.0, step=50.0, key="inc_amt_key")
+        if st.button("💾 حفظ الدخل اليومي الفوري"):
+            if inc_amount > 0:
+                today_str = current_date.strftime('%Y-%m-%d')
+                save_daily_income(user_key, today_str, inc_source, inc_amount)
+                st.success(f"✅ تم حفظ {inc_amount} ريال لمصدر ({inc_source})!")
+                st.rerun()
 
     with col2:
-        st.subheader("🛍️ المصروفات اليومية المتغيرة")
-        for i, exp in enumerate(daily_expenses):
-            c1, c2 = st.columns([2, 1])
-            name = c1.text_input(f"بند المصروف اليومي {i+1}", value=exp['name'], key=f"d_exp_n_{i}")
-            amount = c2.number_input(f"الصرف اليومي {i+1}", min_value=0.0, value=float(exp['amount']), key=f"d_exp_v_{i}")
-            save_user_item(user_key, "daily_expense", name, amount)
-            
-        if st.button("➕ أضف بند مصروف يومي جديد"):
-            save_user_item(user_key, "daily_expense", f"مصروف جديد {len(daily_expenses)+1}", 0.0)
-            st.rerun()
+        st.subheader("🛍️ إدخال الصرف والمصروفات اليومية")
+        exp_item = st.text_input("🛒 بند الصرف الفعلي:", value="مطعم", key="exp_item_key")
+        exp_amount = st.number_input("💸 المبلغ المصروف (ريال):", min_value=0.0, value=0.0, step=10.0, key="exp_amt_key")
+        if st.button("💾 حفظ المصروف اليومي الفوري"):
+            if exp_amount > 0:
+                today_str = current_date.strftime('%Y-%m-%d')
+                save_daily_expense(user_key, today_str, exp_item, exp_amount)
+                st.success(f"✅ تم حفظ بند صرف بقيمة {exp_amount} ريال لـ ({exp_item})!")
+                st.rerun()
 
-# --- 2. صفحة الالتزامات والأقساط ---
+# --- 2. صفحة الالتزامات والأقساط الشهرية الحالية ---
 elif menu_selection == "💳 الالتزامات والأقساط":
-    st.header("💳 قسم الالتزامات والأقساط - My Budget")
+    st.header(f"💳 قسم الالتزامات لشهر {this_month_ym} الحالي")
     st.write("---")
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.subheader("💰 الدخول الثابتة الشهرية (رواتب، عوائد)")
+        st.subheader("💰 الدخول الثابتة لهذا الشهر")
         for i, inc in enumerate(fixed_incomes):
             c1, c2 = st.columns([2, 1])
             name = c1.text_input(f"اسم الدخل الثابت {i+1}", value=inc['name'], key=f"fix_n_{i}")
             amount = c2.number_input(f"المبلغ {i+1}", min_value=0.0, value=float(inc['amount']), key=f"fix_v_{i}")
-            save_user_item(user_key, "fixed", name, amount)
-            
-        if st.button("➕ أضف دخل ثابت جديد"):
-            save_user_item(user_key, "fixed", f"دخل ثابت {len(fixed_incomes)+1}", 0.0)
+            save_user_item_monthly(user_key, "fixed", name, amount, ym_str=this_month_ym)
+        if st.button("➕ أضف دخل ثابت جديد لهذا الشهر"):
+            save_user_item_monthly(user_key, "fixed", f"دخل ثابت {len(fixed_incomes)+1}", 0.0, ym_str=this_month_ym)
             st.rerun()
 
     with col2:
-        st.subheader("📉 الأقساط والالتزامات النشطة")
+        st.subheader("📉 الأقساط والالتزامات المدفوعة هذا الشهر")
         for i, inst in enumerate(installments):
             c1, c2, c3 = st.columns([2, 1, 1])
             name = c1.text_input(f"اسم الالتزام {i+1}", value=inst['name'], key=f"inst_n_{i}")
             amount = c2.number_input(f"القسط الشهري {i+1}", min_value=0.0, value=float(inst['amount']), key=f"inst_v_{i}")
-            months = c3.number_input(f"الأشهر المتبقية {i+1}", min_value=1, value=int(inst.get('remaining_months', inst.get('months', 1))), key=f"inst_m_{i}")
-            save_user_item(user_key, "installments", name, amount, months)
-            
+            s_month = inst.get('start_month_val', current_total_months)
+            months = c3.number_input(f"الأشهر الإجمالية {i+1}", min_value=1, value=int(inst.get('remaining_months', 1)), key=f"inst_m_{i}")
+            save_user_item_monthly(user_key, "installments", name, amount, months, s_month, ym_str=this_month_ym)
         if st.button("➕ أضف قسط/التزام شهري جديد"):
-            save_user_item(user_key, "installments", f"قسط جديد {len(installments)+1}", 0.0, 1)
+            save_user_item_monthly(user_key, "installments", f"قسط جديد {len(installments)+1}", 0.0, 1, current_total_months, ym_str=this_month_ym)
             st.rerun()
-            
-    st.write("---")
-    if st.button("🔄 تصفير البيانات والبدء من جديد"):
-        clear_user_data(user_key)
-        st.success("تم مسح بيانات الحساب الحالي بنجاح لإعادة الضبط!")
-        st.rerun()
 
-# --- 3. صفحة لوحة التحليلات والاتجاهات ---
+# ==============================================================================
+# 📌 3. قسم الأهداف والالتزامات المرنة (التحديث الشامل والمطلوب)
+# ==============================================================================
+elif menu_selection == "📌 الأهداف والالتزامات المرنة":
+    st.header("📌 قسم الأهداف والالتزامات المرنة - My Budget")
+    st.caption("🔒 هذا القسم جانبي بالكامل ولا يدخل في الحسب الشهرية المباشرة لضمان دقة أرقامك الحالية.")
+    st.write("---")
+    
+    col_debts, col_wishes = st.columns(2)
+    
+    with col_debts:
+        st.subheader("💸 سجل الالتزامات والديون الجانبية")
+        d_name = st.text_input("اسم الالتزام / الدين:", placeholder="مثال: دين أبو فهد", key="debt_n_in")
+        d_amount = st.number_input("المبلغ (ريال):", min_value=0.0, value=0.0, key="debt_a_in")
+        
+        # خيار السداد المتوقع الاختياري
+        enable_debt_date = st.checkbox("📅 نود إضافة تاريخ متوقع لسداد هذا الالتزام")
+        d_date_str = "---"
+        if enable_debt_date:
+            chosen_d_date = st.date_input("حدد تاريخ السداد المتوقع:", value=current_date)
+            d_date_str = chosen_d_date.strftime('%Y-%m-%d')
+            
+        if st.button("💾 حفظ الالتزام الجانبي"):
+            if d_name and d_amount > 0:
+                add_flexible_item_v2(user_key, "debt", d_name, d_amount, d_date_str)
+                st.success("✅ تم حفظ الالتزام الجانبي بنجاح!")
+                st.rerun()
+                
+        st.write("---")
+        my_debts = get_flexible_items_v2(user_key, "debt")
+        if my_debts:
+            for debt in my_debts:
+                status = "✅ تم السداد" if debt['is_done'] == 1 else "⏳ معلق"
+                st.markdown(f"• **{debt['name']}**: {debt['amount']:,.0f} ريال | تاريخ السداد المتوقع: `{debt['target_date']}` [*{status}*]")
+                if debt['is_done'] == 0:
+                    if st.button(f"أشر كـ تم السداد لـ {debt['name']}", key=f"b_d_{debt['id']}"):
+                        update_flexible_status_v2(debt['id'], 1)
+                        st.rerun()
+        else:
+            st.info("سجلك فارغ من الالتزامات الجانبية حالياً.")
+
+    with col_wishes:
+        st.subheader("🎯 قائمة المشتريات والرغبات المستقبلية")
+        w_name = st.text_input("اسم المشتريات / السلعة المستهدفة:", placeholder="مثال: لابتوب جديد")
+        w_amount = st.number_input("سعرها المتوقع (ريال):", min_value=0.0, value=0.0, key="w_a_in")
+        
+        # تاريخ الشراء المتوقع الإلزامي لتفعيل نظام التنبيه بعد 3 أشهر
+        chosen_w_date = st.date_input("حدد تاريخ الشراء المتوقع للسلعة:", value=current_date)
+        w_date_str = chosen_w_date.strftime('%Y-%m-%d')
+        
+        if st.button("💾 حفظ وإدراج تحت المراقبة الزمنية"):
+            if w_name and w_amount > 0:
+                add_flexible_item_v2(user_key, "wish", w_name, w_amount, w_date_str)
+                st.success(f"✅ تم إدراج {w_name} تحت مراقبة نظام التنبيه الـ 3 أشهر!")
+                st.rerun()
+                
+        st.write("---")
+        my_wishes = get_flexible_items_v2(user_key, "wish")
+        if my_wishes:
+            for wish in my_wishes:
+                status = "🎉 تم الشراء" if wish['is_done'] == 1 else "🔍 قيد الانتظار"
+                st.markdown(f"• **{wish['name']}**: {wish['amount']:,.0f} ريال | تاريخ الشراء المتوقع: `{wish['target_date']}` [*{status}*]")
+                if wish['is_done'] == 0:
+                    if st.button(f"تأكيد إتمام الشراء لـ {wish['name']}", key=f"b_w_{wish['id']}"):
+                        update_flexible_status_v2(wish['id'], 1)
+                        st.rerun()
+        else:
+            st.info("لا توجد مستهدفات في قائمة مشترياتك حالياً.")
+
+# ==============================================================================
+# 📊 4. صفحة التحليلات المتقدمة + التقويم المالي + نظام تنبيه الـ 3 أشهر للمشتريات
+# ==============================================================================
 elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     st.header("📊 لوحة تحليلات My Budget وتتبع الاتجاهات")
     st.write("---")
     
-    total_fixed_inc = sum(item['amount'] for item in fixed_incomes)
-    raw_daily_inc = sum(item['amount'] for item in daily_incomes)
+    # 🔔 فحص نظام التنبيه الذكي للمشتريات (إذا مضى على تاريخ الشراء المتوقع 3 أشهر أو أكثر)
+    my_wishes = get_flexible_items_v2(user_key, "wish")
+    if my_wishes:
+        for wish in my_wishes:
+            if wish['is_done'] == 0 and wish['target_date'] != "---":
+                try:
+                    # تحويل نص التاريخ المخزن إلى كود زمني لمقارنته بدقة
+                    t_date = datetime.strptime(wish['target_date'], '%Y-%m-%d')
+                    # حساب الفارق بالأيام؛ 3 أشهر تعادل برمجياً حوالي 90 يوماً
+                    days_passed = (current_date - t_date).days
+                    
+                    if days_passed >= 90:
+                        st.warning(f"⏰ **تنبيه قائمة الرغبات:** يا محمد، لقد مضى أكثر من **3 أشهر** على تاريخ الشراء المتوقع الذي حددته لـ (**{wish['name']}**) بقيمة {wish['amount']:,.0f} ريال! يرجى مراجعة محفظتك بالأسفل لترى إن كان بإمكانك اقتناؤها الآن. 🛒")
+                except:
+                    pass
+
+    df_daily_inc_records = get_daily_income_records(user_key)
+    df_daily_exp_records = get_daily_expense_records(user_key)
     
-    weekly_var_inc = raw_daily_inc * 7
-    monthly_var_inc = raw_daily_inc * 30
+    current_fixed_inc_total = sum(item['amount'] for item in fixed_incomes)
+    current_inst_total = sum(item['amount'] for item in installments)
     
-    buffer_percent = 10
-    buffer_extracted = (monthly_var_inc * buffer_percent) / 100
-    net_monthly_var = monthly_var_inc - buffer_extracted
+    month_daily_inc = df_daily_inc_records[(df_daily_inc_records['date'] >= f"{this_month_ym}-01") & (df_daily_inc_records['date'] <= f"{this_month_ym}-31")]['amount'].sum() if not df_daily_inc_records.empty else 0.0
+    month_daily_exp = df_daily_exp_records[(df_daily_exp_records['date'] >= f"{this_month_ym}-01") & (df_daily_exp_records['date'] <= f"{this_month_ym}-31")]['amount'].sum() if not df_daily_exp_records.empty else 0.0
     
-    total_daily_exp = sum(item['amount'] for item in daily_expenses)
-    monthly_var_exp = total_daily_exp * 30
-    total_installments = sum(item['amount'] for item in installments)
+    global_month_income = current_fixed_inc_total + month_daily_inc
+    global_month_expense = current_inst_total + month_daily_exp
+    global_month_wallet = global_month_income - global_month_expense
+
+    # ==============================================================================
+    # 📅 قسم التقويم المالي التفاعلي لشهر يونيو 2026م
+    # ==============================================================================
+    st.subheader(f"📅 لوحة التقويم المالي التفاعلي لشهر: {current_date.strftime('%B %Y')}م")
     
-    total_income = total_fixed_inc + net_monthly_var
-    total_expenses = total_installments + monthly_var_exp
-    net_surplus = total_income - total_expenses
+    cal = calendar.Calendar(firstweekday=5)
+    month_days = cal.monthdayscalendar(current_date.year, current_date.month)
     
-    st.subheader("🚨 تقرير تجميع الدخل المتغير")
-    col_box1, col_box2 = st.columns(2)
-    col_box1.info(f"📊 **مجموع الدخل المتغير الأسبوعي:** {weekly_var_inc:,.0f} ريال")
-    col_box2.info(f"📅 **مجموع الدخل المتغير الشهري:** {monthly_var_inc:,.0f} ريال")
+    st.markdown('<div class="cal-grid">', unsafe_allow_html=True)
+    for day_name in ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الاربعاء", "الخميس", "الجمعة"]:
+        st.markdown(f'<div class="cal-header">{day_name}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="cal-grid">', unsafe_allow_html=True)
+    for week in month_days:
+        for day in week:
+            if day == 0:
+                st.markdown('<div class="cal-day cal-empty"></div>', unsafe_allow_html=True)
+            else:
+                target_date_str = f"{this_month_ym}-{day:02d}"
+                day_inc_sum = df_daily_inc_records[df_daily_inc_records['date'] == target_date_str]['amount'].sum() if not df_daily_inc_records.empty else 0.0
+                day_exp_sum = df_daily_exp_records[df_daily_exp_records['date'] == target_date_str]['amount'].sum() if not df_daily_exp_records.empty else 0.0
+                
+                inc_text = f"+{day_inc_sum:,.0f} ريال" if day_inc_sum > 0 else "---"
+                exp_text = f"-{day_exp_sum:,.0f} ريال" if day_exp_sum > 0 else "---"
+                
+                st.markdown(f"""
+                    <div class="cal-day">
+                        <div class="cal-day-num">{day}</div>
+                        <div class="cal-inc">{inc_text}</div>
+                        <div class="cal-exp">{exp_text}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # الخلاصة التراكمية الصافية للشهر الحالي
     st.write("---")
-    
-    t1, t2, t3 = st.tabs(["🗓️ نهاية الشهر الحالي", "📐 ربع السنة الحالي", "🎆 بداية العام القادم (تقديري)"])
-    
-    with t1:
-        st.write(f"### الوضع المالي التفاعلي المباشر لنهاية الشهر الحالي لعام {current_date.year}")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("صافي الدخل المجمع", f"{total_income:,.0f} ريال")
-        m2.metric("إجمالي المصاريف والأقساط", f"{total_expenses:,.0f} ريال")
-        m3.metric("صافي الفائض المالي", f"{net_surplus:,.0f} ريال")
-        
-        chart_data = [
-            {'الفئة': 'الدخول الثابتة', 'المبلغ': total_fixed_inc, 'النوع': 'الدخول'},
-            {'الفئة': 'صافي الدخل اليومي مجمع', 'المبلغ': net_monthly_var, 'النوع': 'الدخول'},
-            {'الفئة': 'المصروفات اليومية مجمعة', 'المبلغ': monthly_var_exp, 'النوع': 'المصاريف'},
-            {'الفئة': 'الأقساط والالتزامات', 'المبلغ': total_installments, 'النوع': 'المصاريف'}
-        ]
-        df_m = pd.DataFrame(chart_data)
-        fig_m = px.bar(df_m, x='الفئة', y='المبلغ', color='النوع', text_auto=True)
-        st.plotly_chart(fig_m, use_container_width=True)
-        
-    with t2:
-        st.write(f"### التحليلات التراكمية الربع سنوية لـ {q}")
-        q1, q2, q3 = st.columns(3)
-        q1.metric("الدخل الربعي التقديري", f"{(total_income * 3):,.0f} ريال")
-        q2.metric("المصاريف الربعية التقديرية", f"{(total_expenses * 3):,.0f} ريال")
-        q3.metric("الفائض الربعي المتوقع", f"{(net_surplus * 3):,.0f} ريال")
-        
-    with t3:
-        st.write(f"### التحليل السنوي الاستباقي لبداية العام القادم {current_date.year + 1}م")
-        y1, y2, y3 = st.columns(3)
-        y1.metric("الدخل السنوي المتوقع", f"{(total_income * 12):,.0f} ريال")
-        y2.metric("المصاريف السنوية التقديرية", f"{(total_expenses * 12):,.0f} ريال")
-        y3.metric("الفائض السنوي المستهدف", f"{(net_surplus * 12):,.0f} ريال")
+    st.subheader("📊 الخلاصة التراكمية الصافية للشهر الحالي")
+    c_box1, c_box2, c_box3 = st.columns(3)
+    c_box1.info(f"💵 **إجمالي مدخول الشهر الفعلي:**\n\n {global_month_income:,.0f} ريال")
+    c_box2.warning(f"💸 **إجمالي المصروفات والالتزامات:**\n\n {global_month_expense:,.0f} ريال")
+    if global_month_wallet >= 0:
+        c_box3.success(f"👛 **صافي المحفظة (المتبقي لك):**\n\n {global_month_wallet:,.0f} ريال")
+    else:
+        c_box3.error(f"🚨 **صافي المحفظة (عجز مالي):**\n\n {global_month_wallet:,.0f} ريال")
