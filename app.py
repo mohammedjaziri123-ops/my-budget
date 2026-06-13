@@ -3,32 +3,36 @@ import sqlite3
 import calendar
 from datetime import datetime, timedelta
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 # إعدادات الصفحة الأساسية وتصميم الواجهة باسم التطبيق My Budget
-st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الدائم 14.0", page_icon="💰", layout="wide")
+st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الدائم 16.0", page_icon="💰", layout="wide")
 
-# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق واجهة التقويم المطابق للمثال المرفق
+# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق كروت الأسبوع والتقويم
 st.markdown("""
     <style>
-    /* تنسيق المحتوى بالكامل ليدعم اللغة العربية */
     .block-container { text-align: right; direction: rtl; }
     h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown { text-align: right; direction: rtl; }
-    
-    /* تنسيق أزرار الحفظ والإدخال */
     .stButton>button { width: 100%; border-radius: 10px; background-color: #2E7D32; color: white; font-weight: bold; height: 45px; }
     [data-testid="stSidebar"] { text-align: right; direction: rtl; background-color: #1A1A1A; }
     .login-box { background-color: #262626; padding: 30px; border-radius: 15px; border: 1px solid #404040; margin-top: 20px; }
     
-    /* تصميم شبكة التقويم المالي الذكي المطابق لجدول الصورة المرفقة */
+    /* تنسيق شبكة التقويم المالي الذكي لشاشة الشهر */
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; direction: rtl; margin-top: 15px; margin-bottom: 25px; }
     .cal-header { background-color: #1A1A1A; padding: 12px; text-align: center; font-weight: bold; border-radius: 6px; color: #4CAF50; font-size: 16px; border: 1px solid #333; }
     .cal-day { background-color: #262626; border: 1px solid #444; border-radius: 10px; padding: 10px; min-height: 105px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
-    .cal-day-num { font-weight: bold; font-size: 16px; color: #BBBBBB; border-bottom: 1px solid #3d3d3d; padding-bottom: 4px; text-align: right; font-family: 'Arial', sans-serif; }
+    .cal-day-num { font-weight: bold; font-size: 16px; color: #BBBBBB; border-bottom: 1px solid #333; padding-bottom: 4px; text-align: right; font-family: 'Arial', sans-serif; }
     .cal-inc { color: #4CAF50; font-size: 13px; font-weight: bold; text-align: center; margin-top: 6px; }
     .cal-exp { color: #F44336; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 6px; }
     .cal-empty { background-color: transparent; border: none; box-shadow: none; }
+    
+    /* تصميم جدول الكروت الأسبوعي الذكي والمطابق لهيكلية صورة كرت التمرين */
+    .week-row-grid { display: grid; grid-template-columns: 1.5fr 2fr 2fr 2fr; gap: 10px; direction: rtl; margin-bottom: 8px; align-items: center; }
+    .week-header-cell { background-color: #1A1A1A; padding: 10px; text-align: center; font-weight: bold; border-radius: 6px; color: #4CAF50; border: 1px solid #333; font-size: 14px; }
+    .week-cell-day { background-color: #262626; padding: 12px; text-align: center; font-weight: bold; border: 1px solid #444; border-radius: 8px; color: #BBBBBB; font-size: 14px; }
+    .week-cell-inc { background-color: #262626; padding: 12px; text-align: center; border: 1px solid #444; border-radius: 8px; color: #4CAF50; font-weight: bold; font-size: 14px; }
+    .week-cell-exp { background-color: #262626; padding: 12px; text-align: center; border: 1px solid #444; border-radius: 8px; color: #F44336; font-weight: bold; font-size: 14px; }
+    .week-cell-rem { background-color: #262626; padding: 12px; text-align: center; border: 1px solid #444; border-radius: 8px; font-weight: bold; font-size: 14px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -65,7 +69,7 @@ def get_flexible_items_v2(email, type_str):
 
 def add_flexible_item_v2(email, type_str, name, amount, target_date_str):
     conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
+    c = cursor = conn.cursor()
     c.execute("INSERT INTO flexible_goals_v2 (email, type, name, amount, target_date, is_done) VALUES (?, ?, ?, ?, ?, 0)", (email, type_str, name, amount, target_date_str))
     conn.commit()
     conn.close()
@@ -173,7 +177,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==============================================================================
-# 🔓 واجهة التطبيق والأقسام
+# 🔓 واجهة التطبيق والأقسام بعد تسجيل الدخول الإجباري
 # ==============================================================================
 user_key = st.session_state.user_email
 
@@ -190,7 +194,9 @@ menu_selection = st.sidebar.radio(
     ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "🗓️ التقويم والحصيلة الشهرية", "📌 الأهداف والالتزامات المرنة", "📊 لوحة التحليلات والاتجاهات"]
 )
 
-# حساب فترات ربع السنة التلقائي الحالي لعام 2026م
+df_daily_inc_records = get_daily_income_records(user_key)
+df_daily_exp_records = get_daily_expense_records(user_key)
+
 if current_date.month in [1, 2, 3]: q_name, q_months = "الربع الأول (Q1)", [f"{current_year_str}-01", f"{current_year_str}-02", f"{current_year_str}-03"]
 elif current_date.month in [4, 5, 6]: q_name, q_months = "الربع الثاني (Q2)", [f"{current_year_str}-04", f"{current_year_str}-05", f"{current_year_str}-06"]
 elif current_date.month in [7, 8, 9]: q_name, q_months = "الربع الثالث (Q3)", [f"{current_year_str}-07", f"{current_year_str}-08", f"{current_year_str}-09"]
@@ -250,77 +256,41 @@ elif menu_selection == "💳 الالتزامات والأقساط":
             save_user_item_monthly(user_key, "installments", f"قسط جديد {len(installments)+1}", 0.0, 1, current_total_months, ym_str=this_month_ym)
             st.rerun()
 
-# ==============================================================================
-# 🗓️ 3. قسم التقويم والحصيلة الشهرية (التقويم المالي الاحترافي التفاعلي)
-# ==============================================================================
+# --- 3. التقويم والحصيلة الشهرية ---
 elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
     st.header("🗓️ لوحة التقويم والحصيلة الشهرية المخصصة")
     st.write("---")
-    
-    # 🌟 صندوق الخيارات الذكي لاختيار الشهر المطلوب عربياً واستخراج شبكته التاريخية
-    months_arabic_names = {
-        "01": "يناير (January)", "02": "فبراير (February)", "03": "مارس (March)",
-        "04": "أبريل (April)", "05": "مايو (May)", "06": "يونيو (June)",
-        "07": "يوليو (July)", "08": "أغسطس (August)", "09": "سبتمبر (September)",
-        "10": "أكتوبر (October)", "11": "نوفمبر (November)", "12": "ديسمبر (December)"
-    }
-    
-    selected_month_code = st.selectbox(
-        "📅 اختر الشهر لاستعراض تقويمه المالي وحصيلته بدقة:",
-        options=list(months_arabic_names.keys()),
-        index=int(current_date.month) - 1,
-        format_func=lambda x: months_arabic_names[x]
-    )
-    
-    # صياغة النص الزمني للشهر المختار (مثال: "2026-06")
+    months_arabic_names = {"01": "يناير (January)", "02": "فبراير (February)", "03": "مارس (March)", "04": "أبريل (April)", "05": "مايو (May)", "06": "يونيو (June)", "07": "يوليو (July)", "08": "أغسطس (August)", "09": "سبتمبر (September)", "10": "أكتوبر (October)", "11": "نوفمبر (November)", "12": "ديسمبر (December)"}
+    selected_month_code = st.selectbox("📅 اختر الشهر لاستعراض تقويمه المالي وحصيلته بدقة:", options=list(months_arabic_names.keys()), index=int(current_date.month) - 1, format_func=lambda x: months_arabic_names[x])
     selected_ym_str = f"{current_year_str}-{selected_month_code}"
     
-    # جلب معطيات الشهر المختار من قاعدة البيانات للرواتب والأقساط
     selected_fixed_db = get_user_data_monthly(user_key, "fixed", selected_ym_str)
     selected_inst_db = get_user_data_monthly(user_key, "installments", selected_ym_str)
-    
     sel_fixed_inc_total = sum(item['amount'] for item in selected_fixed_db)
     sel_inst_total = sum(item['amount'] for item in selected_inst_db)
     
-    # بناء هيكلية شبكة التقويم البرمجية الدقيقة لعام 2026م المطابقة لصورة المثال المرفق
-    cal = calendar.Calendar(firstweekday=5) # يبدأ من يوم السبت لتنسيق عربي ممتاز
+    cal = calendar.Calendar(firstweekday=5)
     month_days = cal.monthdayscalendar(int(current_year_str), int(selected_month_code))
     
-    # ترويسة أسماء الأيام للجدول المالي
     st.markdown('<div class="cal-grid">', unsafe_allow_html=True)
-    for day_name in ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]:
-        st.markdown(f'<div class="cal-header">{day_name}</div>', unsafe_allow_html=True)
+    for day_name in ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"]: st.markdown(f'<div class="cal-header">{day_name}</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # طباعة الأيام والعمليات المالية (اللغة عربية، والأرقام إنجليزية داخل المربع)
     st.markdown('<div class="cal-grid">', unsafe_allow_html=True)
     for week in month_days:
         for day in week:
-            if day == 0:
-                st.markdown('<div class="cal-day cal-empty"></div>', unsafe_allow_html=True)
+            if day == 0: st.markdown('<div class="cal-day cal-empty"></div>', unsafe_allow_html=True)
             else:
                 target_date_str = f"{selected_ym_str}-{day:02d}"
-                
                 day_inc = df_daily_inc_records[df_daily_inc_records['date'] == target_date_str]['amount'].sum() if not df_daily_inc_records.empty else 0.0
                 day_exp = df_daily_exp_records[df_daily_exp_records['date'] == target_date_str]['amount'].sum() if not df_daily_exp_records.empty else 0.0
-                
                 inc_t = f"+{day_inc:,.0f} ريال" if day_inc > 0 else "---"
                 exp_t = f"-{day_exp:,.0f} ريال" if day_exp > 0 else "---"
-                
-                # استخدام خط مخصص لعرض الأرقام إنجليزية (انجلش) بوضوح
-                st.markdown(f"""
-                    <div class="cal-day">
-                        <div class="cal-day-num">{day}</div>
-                        <div class="cal-inc">{inc_t}</div>
-                        <div class="cal-exp">{exp_t}</div>
-                    </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f'<div class="cal-day"><div class="cal-day-num">{day}</div><div class="cal-inc">{inc_t}</div><div class="cal-exp">{exp_t}</div></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # حساب المجاميع الحقيقية للشهر المختار بالأسفل
     sel_daily_inc = df_daily_inc_records[(df_daily_inc_records['date'] >= f"{selected_ym_str}-01") & (df_daily_inc_records['date'] <= f"{selected_ym_str}-31")]['amount'].sum() if not df_daily_inc_records.empty else 0.0
     sel_daily_exp = df_daily_exp_records[(df_daily_exp_records['date'] >= f"{selected_ym_str}-01") & (df_daily_exp_records['date'] <= f"{selected_ym_str}-31")]['amount'].sum() if not df_daily_exp_records.empty else 0.0
-    
     tot_inc = sel_fixed_inc_total + sel_daily_inc
     tot_exp = sel_inst_total + sel_daily_exp
     tot_wallet = tot_inc - tot_exp
@@ -342,24 +312,12 @@ elif menu_selection == "📌 الأهداف والالتزامات المرنة"
         d_name = st.text_input("اسم الالتزام / الدين:", placeholder="دين أبو فهد")
         d_amount = st.number_input("المبلغ (ريال):", min_value=0.0, key="d_amt_flx")
         d_date_str = "---"
-        if st.checkbox("📅 إضافة تاريخ متوقع لسداد هذا الالتزام"):
-            d_date_str = st.date_input("تاريخ السداد المتوقع:", value=current_date).strftime('%Y-%m-%d')
+        if st.checkbox("📅 إضافة تاريخ متوقع لسداد هذا الالتزام"): d_date_str = st.date_input("تاريخ السداد المتوقع:", value=current_date).strftime('%Y-%m-%d')
         if st.button("💾 حفظ الالتزام الجانبي"):
             if d_name and d_amount > 0:
                 add_flexible_item_v2(user_key, "debt", d_name, d_amount, d_date_str)
                 st.success("✅ تم حفظ الالتزام الجانبي بنجاح!")
                 st.rerun()
-                
-        st.write("---")
-        my_debts = get_flexible_items_v2(user_key, "debt")
-        if my_debts:
-            for debt in my_debts:
-                status = "✅ تم السداد" if debt['is_done'] == 1 else "⏳ معلق"
-                st.markdown(f"• **{debt['name']}**: {debt['amount']:,.0f} ريال | التاريخ المتوقع: `{debt['target_date']}` [*{status}*]")
-                if debt['is_done'] == 0:
-                    if st.button(f"أشر كـ تم السداد لـ {debt['name']}", key=f"b_d_{debt['id']}"):
-                        update_flexible_status_v2(debt['id'], 1)
-                        st.rerun()
     with col_wishes:
         st.subheader("🎯 قائمة المشتريات والرغبات المستقبلية")
         w_name = st.text_input("اسم السلعة المستهدفة:", placeholder="لابتوب جديد")
@@ -370,42 +328,34 @@ elif menu_selection == "📌 الأهداف والالتزامات المرنة"
                 add_flexible_item_v2(user_key, "wish", w_name, w_amount, w_date_str)
                 st.success("✅ تم التوثيق تحت المراقبة الذكية!")
                 st.rerun()
-                
-        st.write("---")
-        my_wishes = get_flexible_items_v2(user_key, "wish")
-        if my_wishes:
-            for wish in my_wishes:
-                status = "🎉 تم الشراء" if wish['is_done'] == 1 else "🔍 قيد الانتظار"
-                st.markdown(f"• **{wish['name']}**: {wish['amount']:,.0f} ريال | التاريخ المتوقع: `{wish['target_date']}` [*{status}*]")
-                if wish['is_done'] == 0:
-                    if st.button(f"تأكيد إتمام الشراء لـ {wish['name']}", key=f"b_w_{wish['id']}"):
-                        update_flexible_status_v2(wish['id'], 1)
-                        st.rerun()
 
-# --- 5. لوحة التحليلات والاتجاهات (الجدول الأسبوعي وربع السنة والسنة) ---
+# ==============================================================================
+# 📊 5. لوحة التحليلات والاتجاهات (تحديث الكروت الأسبوعية المطابقة لـ image_6.png)
+# ==============================================================================
 elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     st.header("📊 لوحة تحليلات الفترات الزمنية والاتجاهات الفعليّة")
     st.write("---")
     
-    # فحص نظام تنبيه المشتريات بعد مرور 3 أشهر
-    my_wishes = get_flexible_items_v2(user_key, "wish")
-    if my_wishes:
-        for wish in my_wishes:
-            if wish['is_done'] == 0 and wish['target_date'] != "---":
-                try:
-                    t_date = datetime.strptime(wish['target_date'], '%Y-%m-%d')
-                    if (current_date - t_date).days >= 90:
-                        st.warning(f"⏰ **تنبيه قائمة المشتريات:** لقد مضى أكثر من **3 أشهر** على تاريخ الشراء المتوقع لـ (**{wish['name']}**) بقيمة {wish['amount']:,.0f} ريال!")
-                except: pass
-
-    # بناء جدول مراقبة الأداء الأسبوعي الفعلي لآخر 7 أيام
-    st.subheader("📅 جدول تتبع ومراقبة الأداء المالي الأسبوعي الفعلي (آخر 7 أيام)")
+    # 👑 بناء وتصميم الجدول الأسبوعي الجديد على شكل كروت أفقية منسقة تشبه كرت التمرين
+    st.subheader("📅 جدول ومراقبة الأداء المالي الأسبوعي الفعلي (آخر 7 أيام)")
+    st.caption("💡 تم بناء الخلايا أفقياً طبقاً لتصميم الكروت؛ حيث يوضح كل سطر: اسم اليوم، الدخل، الصرف، والمتبقي الحالي الفعلي الحقيقي.")
+    
+    # ترويسة الأعمدة الأفقية العلوية للكروت
+    st.markdown("""
+        <div class="week-row-grid">
+            <div class="week-header-cell">اليوم (DAY)</div>
+            <div class="week-header-cell">الدخل (INCOME)</div>
+            <div class="week-header-cell">الصرف (EXPENSE)</div>
+            <div class="week-header-cell">المتبقي (REMAINING)</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
     arabic_days = {"Monday": "الإثنين", "Tuesday": "الثلاثاء", "Wednesday": "الأربعاء", "Thursday": "الخميس", "Friday": "الجمعة", "Saturday": "السبت", "Sunday": "الأحد"}
     
-    week_list = []
     total_weekly_inc_sum = 0.0
     total_weekly_exp_sum = 0.0
     
+    # توليد الكروت السبعة بدقة تراجعية للأيام السبعة الماضية
     for d in range(7):
         t_date = current_date - timedelta(days=d)
         t_date_str = t_date.strftime('%Y-%m-%d')
@@ -416,48 +366,60 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
         
         total_weekly_inc_sum += day_inc
         total_weekly_exp_sum += day_exp
+        day_rem = day_inc - day_exp
         
-        week_list.append({
-            "التاريخ": t_date_str, "اليوم": day_ar,
-            "إجمالي الدخل (ريال)": day_inc, "إجمالي الصرف (ريال)": day_exp
-        })
+        # تنسيق لون المتبقي لليوم الحالي (أخضر للفائض، أحمر للعجز)
+        rem_style = "color: #4CAF50;" if day_rem >= 0 else "color: #F44336;"
         
-    df_week_table = pd.DataFrame(week_list).iloc[::-1].reset_index(drop=True)
-    st.dataframe(df_week_table, use_container_width=True, hide_index=True)
-    st.info(f"📊 **مجموع الدخل المتغير الأسبوعي:** {total_weekly_inc_sum:,.0f} ريال | 💸 **مجموع الصرف اليومي الأسبوعي:** {total_weekly_exp_sum:,.0f} ريال")
+        # طباعة سطر الكرت الأفقي المطابق للهيكلية البصرية المطلوبة
+        st.markdown(f"""
+            <div class="week-row-grid">
+                <div class="week-cell-day">{day_ar}</div>
+                <div class="week-cell-inc">+{day_inc:,.0f} ريال</div>
+                <div class="week-cell-exp">-{day_exp:,.0f} ريال</div>
+                <div class="week-cell-rem" style="{rem_style}">{day_rem:,.0f} ريال</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    # حساب وعرض ملخص الأسبوع الإجمالي المكتوب مباشرة أسفل لوحة الكروت الأفقية
+    st.write("---")
+    st.subheader("📊 إجمالي الحصاد المالي الفعلي لهذا الأسبوع")
+    col_w1, col_w2, col_w3 = st.columns(3)
+    col_w1.info(f"💵 **إجمالي الدخل لهذا الأسبوع:**\n\n {total_weekly_inc_sum:,.0f} ريال")
+    col_w2.warning(f"💸 **إجمالي الصرف لهذا الأسبوع:**\n\n {total_weekly_exp_sum:,.0f} ريال")
+    
+    weekly_net_rem = total_weekly_inc_sum - total_weekly_exp_sum
+    if weekly_net_rem >= 0:
+        col_w3.success(f"👛 **صافي المتبقي لك هذا الأسبوع:**\n\n {weekly_net_rem:,.0f} ريال")
+    else:
+        col_w3.error(f"🚨 **صافي العجز المالي هذا الأسبوع:**\n\n {weekly_net_rem:,.0f} ريال")
+        
     st.write("---")
     
-    # الأقسام التراكمية الحقيقية لربع السنة والسنة كاملة بالاعتماد على قاعدة البيانات
+    # التبويبات التراكمية الدقيقة لربع السنة والسنة كاملة بالاعتماد التام على قاعدة البيانات
     t_q, t_y = st.tabs(["📐 الحصيلة التراكمية لربع السنة الحالي", "🎆 السجل التاريخي للسنة كاملة"])
-    
     with t_q:
         st.write(f"### 📐 الحصيلة التراكمية الفعلية لـ {q_name}")
         all_fixed_inc_df = get_all_fixed_data_for_user(user_key, "fixed")
         all_inst_df = get_all_fixed_data_for_user(user_key, "installments")
-        
         q_f_inc = all_fixed_inc_df[all_fixed_inc_df['year_month'].isin(q_months)]['amount'].sum()
         q_f_exp = all_inst_df[all_inst_df['year_month'].isin(q_months)]['amount'].sum()
         q_d_inc = df_daily_inc_records[df_daily_inc_records['date'].str[:7].isin(q_months)]['amount'].sum() if not df_daily_inc_records.empty else 0.0
         q_d_exp = df_daily_exp_records[df_daily_exp_records['date'].str[:7].isin(q_months)]['amount'].sum() if not df_daily_exp_records.empty else 0.0
-        
         q_tot_income = q_f_inc + q_d_inc
         q_tot_expense = q_f_exp + q_d_exp
-        
         col_q1, col_q2, col_q3 = st.columns(3)
         col_q1.metric("دخل الربع الفعلي المحقق", f"{q_tot_income:,.0f} ريال")
         col_q2.metric("مصروفات الربع الفعلية المدفوعة", f"{q_tot_expense:,.0f} ريال")
         col_q3.metric("صافي الفائض للربع", f"{(q_tot_income - q_tot_expense):,.0f} ريال")
-        
     with t_y:
         st.write(f"### 🎆 السجل التاريخي الفعلي لعام {current_year_str} م")
         y_f_inc = all_fixed_inc_df[all_fixed_inc_df['year_month'].str.startswith(current_year_str)]['amount'].sum()
         y_f_exp = all_inst_df[all_inst_df['year_month'].str.startswith(current_year_str)]['amount'].sum()
         y_d_inc = df_daily_inc_records[df_daily_inc_records['date'].str.startswith(current_year_str)]['amount'].sum() if not df_daily_inc_records.empty else 0.0
         y_d_exp = df_daily_exp_records[df_daily_exp_records['date'].str.startswith(current_year_str)]['amount'].sum() if not df_daily_exp_records.empty else 0.0
-        
         y_tot_income = y_f_inc + y_d_inc
         y_tot_expense = y_f_exp + y_d_exp
-        
         col_y1, col_y2, col_y3 = st.columns(3)
         col_y1.metric("إجمالي دخل السنة الفعلي", f"{y_tot_income:,.0f} ريال")
         col_y2.metric("إجمالي مصروفات السنة الفعلية", f"{y_tot_expense:,.0f} ريال")
