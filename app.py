@@ -8,12 +8,19 @@ import streamlit as st
 # إعدادات الصفحة الأساسية وتصميم الواجهة الذكية المتجاوبة باسم التطبيق My Budget
 st.set_page_config(page_title="تطبيق My Budget الاحترافي 3.0", page_icon="💰", layout="wide")
 
-# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق القوائم الجانبية والأزرار
+# تطبيق نمط الاتجاه من اليمين لليسار (RTL) مع حل مشكلة تداخل الحروف والقائمة الجانبية تماماً
 st.markdown("""
     <style>
-    body, div, p, h1, h2, h3, h4, th, td { text-align: right; direction: rtl; }
+    /* تنسيق محتوى الصفحة الأساسية ليدعم العربية بشكل نظيف */
+    .block-container { text-align: right; direction: rtl; }
+    h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown { text-align: right; direction: rtl; }
+    
+    /* تنسيق زر الإدخال الأخضر */
     .stButton>button { width: 100%; border-radius: 10px; background-color: #2E7D32; color: white; font-weight: bold; }
+    
+    /* إصلاح تداخل الحروف في القائمة الجانبية ومنع التفكك العمودي */
     [data-testid="stSidebar"] { text-align: right; direction: rtl; background-color: #1A1A1A; }
+    [data-testid="stSidebar"] * { text-align: right; direction: rtl; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -31,9 +38,9 @@ if 'installments' not in st.session_state:
     st.session_state.installments = [{"name": "قسط تابي", "amount": 400.0, "months": 4}]
 
 # --- شريط التنقل الجانبي الاحترافي (Sidebar Navigation) ---
-st.sidebar.title("🎛️ My Budget - القائمة")
+st.sidebar.title("🎛️ القائمة الرئيسية")
 menu_selection = st.sidebar.radio(
-    "انتقل بين أقسام ميزانيتك:",
+    "انتقل بين أقسام My Budget:",
     ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "📊 لوحة التحليلات والاتجاهات"]
 )
 
@@ -112,13 +119,12 @@ elif menu_selection == "💳 الالتزامات والأقساط":
             st.rerun()
 
 # ==============================================================================
-# 3. صفحة لوحة التحليلات والاتجاهات + ميزة رفع ملف الإكسل وحفظ الأمان
+# 3. صفحة لوحة التحليلات والاتجاهات
 # ==============================================================================
 elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     st.header("📊 لوحة تحليلات My Budget وتتبع الاتجاهات")
     st.write("---")
     
-    # 📥 خيار ميزة رفع ملف إكسل مخصص لقراءة وتتبع مصاريف الشهر كاملاً
     st.subheader("📂 استيراد ميزانية الشهر من ملف إكسل (Excel)")
     uploaded_file = st.file_uploader("ارفع ملف الإكسل (.xlsx) الخاص بمصاريفك هنا:", type=["xlsx"])
     
@@ -127,7 +133,6 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
             excel_df = pd.read_excel(uploaded_file)
             st.success("✅ تم رفع وقراءة ملف الإكسل بنجاح وتحديث اتجاهات الميزانية!")
             st.dataframe(excel_df, use_container_width=True)
-            # رسم بياني تفاعلي مبني على ملف الإكسل المرفوع مباشرة لتتبع اتجاهاته
             if len(excel_df.columns) >= 2:
                 fig_excel = px.line(excel_df, x=excel_df.columns[0], y=excel_df.columns[1], title="📉 منحنى تتبع اتجاهات الصرف والدخل من ملفك المرفوع")
                 st.plotly_chart(fig_excel, use_container_width=True)
@@ -136,20 +141,15 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     
     st.write("---")
     
-    # العمليات البرمجية الحسابية الديناميكية لربط البيانات المدخلة
     total_fixed_inc = sum(item['amount'] for item in st.session_state.fixed_incomes)
-    
-    # حسبة الدخل اليومي المتغير ومجاميعه للأسبوع والشهر
     raw_daily_inc = sum(item['amount'] for item in st.session_state.daily_incomes)
     weekly_var_inc = raw_daily_inc * 7
     monthly_var_inc = raw_daily_inc * 30
     
-    # استقطاع وسادة الطوارئ الآمنة لحفظ التوازن المالي
     buffer_percent = st.session_state.get('buffer_percent', 10)
     buffer_extracted = (monthly_var_inc * buffer_percent) / 100
     net_monthly_var = monthly_var_inc - buffer_extracted
     
-    # المصروفات اليومية المتغيرة شهرياً
     total_daily_exp = sum(item['amount'] for item in st.session_state.daily_expenses)
     monthly_var_exp = total_daily_exp * 30
     
@@ -159,7 +159,6 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     total_expenses = total_installments + monthly_var_exp
     net_surplus = total_income - total_expenses
     
-    # عرض ملخص الحسبة المخصصة للدخل اليومي
     st.subheader("🚨 تقرير تجميع الدخل اليومي المتغير")
     cx1, cx2 = st.columns(2)
     cx1.info(f"📊 **مجموع الدخل المتغير (نهاية كل أسبوع):** {weekly_var_inc:,.0f} ريال")
@@ -167,11 +166,10 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     
     st.write("---")
     
-    # تقارير فترات الشهر والربع سنوي وبداية السنة
     t1, t2, t3 = st.tabs(["🗓️ نهاية الشهر الحالي", "📐 ربع السنة الحالي", "🎆 بداية العام القادم (تقديري)"])
     
     with t1:
-        st.write(f"### الوضع المالي التفاعلي المباشر لنهاية الشهر الحالي لعام 2026")
+        st.write(f"### الوضع المالي التفاعلي المباشر لنهاية الشهر الحالي لعام {current_date.year}")
         m1, m2, m3 = st.columns(3)
         m1.metric("صافي الدخل المجمع", f"{total_income:,.0f} ريال")
         m2.metric("إجمالي المصاريف والأقساط", f"{total_expenses:,.0f} ريال")
@@ -203,17 +201,13 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
         
     st.write("---")
     
-    # 🔒 زر الأمان المالي للحفظ الأبدي
     st.subheader("💾 مركز حماية البيانات والأمان الأبدي")
-    st.write("حمل كافة البيانات التفاعلية التي أدخلتها الآن في ملف إكسل لضمان عدم حذفها أو فقدانها أبداً:")
-    
     backup_data = {
         'نوع السجل': ['الدخول الثابتة', 'الدخول اليومية المجمعة', 'المصروفات اليومية المجمعة', 'الأقساط والالتزامات'],
         'المجموع الشهري التقديري (ريال)': [total_fixed_inc, monthly_var_inc, monthly_var_exp, total_installments]
     }
     backup_df = pd.DataFrame(backup_data)
     
-    # تحويل البيانات إلى كود ملف إكسل جاهز للتحميل المباشر بنقرة واحدة
     import io
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -225,4 +219,3 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
         file_name=f"my_budget_backup_{current_date.strftime('%Y_%m_%d')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    st.success("💡 نصيحة أمان: حمل ملف النسخة الاحتياطية نهاية كل شهر واحفظه في مجلدك المالي الخاص لحماية تاريخية كاملة لبياناتك.")
