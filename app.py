@@ -1,84 +1,164 @@
+import os
+import subprocess
+import sys
+
+# التثبيت التلقائي للمكتبات الناقصة بالسيرفر لضمان عدم ظهور الشاشة الحمراء
+try:
+    import pandas as pd
+    import plotly.express as px
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas", "plotly"])
+    import pandas as pd
+    import plotly.express as px
+
 import streamlit as st
-import pandas as pd
-import plotly.express as px
 
-# إعدادات الصفحة الأساسية والدعم المالي واللغة العربية
-st.set_page_config(page_title="تطبيق ميزانيتي 2.0", page_icon="💰", layout="wide")
+# إعدادات الصفحة الأساسية ودعم الهاتف والوضع الداكن
+st.set_page_config(page_title="تطبيق ميزانيتي التفاعلي 2.0", page_icon="💰", layout="wide")
 
-# تطبيق نمط الاتجاه من اليمين لليسار (RTL) والوضع الداكن المقترح
+# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق الأزرار الكبيرة لسرعة الإدخال
 st.markdown("""
     <style>
     body, div, p, h1, h2, h3, h4, th, td { text-align: right; direction: rtl; }
-    .stButton>button { width: 100%; border-radius: 10px; background-color: #2E7D32; color: white; }
+    .stButton>button { width: 100%; border-radius: 10px; background-color: #1E88E5; color: white; font-weight: bold; }
+    .delete-btn>button { background-color: #e53935 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("💰 تطبيق ميزانيتي 2.0")
-st.subheader("تحويل البيانات إلى واجهات تفاعلية تدعم اتخاذ القرار وتتنبأ بالمستقبل المالي")
+st.title("💰 تطبيق ميزانيتي التفاعلي 2.0")
+st.subheader("تحويل البيانات من جداول صامتة إلى واجهات تفاعلية تدعم اتخاذ القرار وتتنبأ بالمستقبل المالي")
 st.write("---")
 
-# تقسيم الشاشة إلى قسمين: المدخلات واللوحة التحليلية
-col1, col2 = st.columns([1, 2])
+# استخدام الذاكرة المؤقتة لـ Streamlit لحفظ البيانات أثناء التنقل والتعديل
+if 'fixed_incomes' not in st.session_state:
+    st.session_state.fixed_incomes = [{"name": "الراتب الأساسي", "amount": 10000.0}]
+
+if 'var_incomes' not in st.session_state:
+    st.session_state.var_incomes = [{"name": "أوبر", "amount": 1500.0}]
+
+if 'installments' not in st.session_state:
+    st.session_state.installments = [{"name": "قسط تابي", "amount": 400.0, "months": 4}]
+
+# تقسيم الواجهة إلى قسمين: المدخلات التفاعلية ولوحة التحليلات
+col1, col2 = st.columns([1, 1.5])
 
 with col1:
-    st.header("📥 إدخال البيانات المالي")
+    st.header("📥 لوحة الإدخال والتحكم")
     
-    # 1. هيكلة الدخول المتعددة
-    st.subheader("💵 الدخول الثابتة والمتغيرة")
-    fixed_income = st.number_input("الدخل الثابت (راتب، عوائد استثمارية):", min_value=0, value=10000, step=500)
+    # --- قسم الدخول الثابتة ---
+    st.subheader("💵 الدخول الثابتة (رواتب، عوائد...)")
+    for i, inc in enumerate(st.session_state.fixed_incomes):
+        c1, c2 = st.columns([2, 1])
+        inc['name'] = c1.text_input(f"اسم الدخل الثابت {i+1}", value=inc['name'], key=f"fix_name_{i}")
+        inc['amount'] = c2.number_input(f"المبلغ {i+1}", min_value=0.0, value=float(inc['amount']), key=f"fix_val_{i}")
     
-    variable_source = st.text_input("مصدر الدخل المتغير (أوبر، بولت، متجر...):", value="أوبر")
-    variable_amount = st.number_input(f"مبلغ الدخل المتغير من ({variable_source}):", min_value=0, value=1500, step=100)
+    if st.button("➕ أضف دخل ثابت جديد"):
+        st.session_state.fixed_incomes.append({"name": "دخل جديد", "amount": 0.0})
+        st.rerun()
+        
+    st.write("---")
     
-    # ميزة مخصص الطوارئ (الوسادة المالية للعمل الحر)
-    buffer_percent = st.slider("نسبة استقطاع وسادة الأمان المالي للطوارئ (%):", min_value=0, max_value=50, value=10)
+    # --- قسم الدخول المتغيرة ---
+    st.subheader("🚗 الدخول المتغيرة (أوبر، بولت، متجر...)")
+    for i, vinc in enumerate(st.session_state.var_incomes):
+        c1, c2 = st.columns([2, 1])
+        vinc['name'] = c1.text_input(f"مصدر الدخل المتغير {i+1}", value=vinc['name'], key=f"var_name_{i}")
+        vinc['amount'] = c2.number_input(f"المبلغ اليومي/الشهري {i+1}", min_value=0.0, value=float(vinc['amount']), key=f"var_val_{i}")
+        
+    if st.button("➕ أضف دخل متغير جديد"):
+        st.session_state.var_incomes.append({"name": "مصدر متغير جديد", "amount": 0.0})
+        st.rerun()
+        
+    # ميزة وسادة الأمان المالي
+    buffer_percent = st.slider("🛡️ نسبة استقطاع وسادة الأمان المالي للطوارئ من الدخل المتغير (%):", min_value=0, max_value=50, value=10)
     
     st.write("---")
     
-    # 2. إدارة الديون والأقساط
-    st.subheader("💳 الأقساط والالتزامات")
-    tabby_installment = st.number_input("قسط تابي الشهري:", min_value=0, value=400, step=50)
-    tabby_months = st.number_input("عدد الأشهر المتبقية لقسط تابي:", min_value=1, value=4, step=1)
-    other_expenses = st.number_input("المصاريف الشهرية الأخرى (تقديري):", min_value=0, value=4500, step=500)
+    # --- قسم الأقساط والالتزامات ---
+    st.subheader("💳 الأقساط والالتزامات النشطة")
+    for i, inst in enumerate(st.session_state.installments):
+        c1, c2, c3 = st.columns([2, 1, 1])
+        inst['name'] = c1.text_input(f"اسم الالتزام/القسط {i+1}", value=inst['name'], key=f"inst_name_{i}")
+        inst['amount'] = c2.number_input(f"القسط الشهري {i+1}", min_value=0.0, value=float(inst['amount']), key=f"inst_val_{i}")
+        inst['months'] = c3.number_input(f"أشهر متبقية {i+1}", min_value=1, value=int(inst['months']), key=f"inst_months_{i}")
+        
+    if st.button("➕ أضف قسط أو التزام جديد"):
+        st.session_state.installments.append({"name": "قسط جديد", "amount": 0.0, "months": 1})
+        st.rerun()
+        
+    # خانة للمصاريف العامة الأخرى
+    st.write("---")
+    other_expenses = st.number_input("💸 المصاريف الشهرية العامة الأخرى (تقديري):", min_value=0.0, value=4500.0, step=500.0)
+
+    # زر مخصص لتصفير الميزانية للبدء من جديد
+    if st.button("🔄 إعادة ضبط وتصفير القوائم"):
+        st.session_state.fixed_incomes = [{"name": "الراتب الأساسي", "amount": 0.0}]
+        st.session_state.var_incomes = [{"name": "أوبر", "amount": 0.0}]
+        st.session_state.installments = []
+        st.rerun()
 
 with col2:
     st.header("📊 لوحة التحليلات المتقدمة والتنبؤات")
     
-    # الحسابات البرمجية خلف الكواليس
-    buffer_extracted = (variable_amount * buffer_percent) / 100
-    net_variable_income = variable_amount - buffer_extracted
-    total_income = fixed_income + net_variable_income
-    total_expenses = tabby_installment + other_expenses
+    # العمليات البرمجية الحسابية الديناميكية لمجموع القوائم
+    total_fixed = sum(item['amount'] for item in st.session_state.fixed_incomes)
+    raw_variable = sum(item['amount'] for item in st.session_state.var_incomes)
+    
+    # حساب مخصص الطوارئ المستقطع من الدخول المتغيرة
+    buffer_extracted = (raw_variable * buffer_percent) / 100
+    net_variable = raw_variable - buffer_extracted
+    
+    total_income = total_fixed + net_variable
+    total_installments = sum(item['amount'] for item in st.session_state.installments)
+    total_expenses = total_installments + other_expenses
     net_surplus = total_income - total_expenses
     
-    # عرض البطاقات الرقمية الكبيرة سريعة القراءة
+    # عرض البطاقات الرقمية الكبيرة سريعة القراءة وفهم الوضع المالي بلمحة
     c1, c2, c3 = st.columns(3)
-    c1.metric(label="💰 إجمالي الدخل الصافي", value=f"{total_income:,.0f} ريال")
-    c2.metric(label="📉 إجمالي المصاريف", value=f"{total_expenses:,.0f} ريال")
+    c1.metric(label="💵 إجمالي الدخل الصافي", value=f"{total_income:,.0f} ريال")
+    c2.metric(label="📉 إجمالي المصاريف والالتزامات", value=f"{total_expenses:,.0f} ريال")
     
-    # تلوين الفائض المالي تبعا للنتيجة
     if net_surplus >= 0:
         c3.metric(label="🟢 صافي الفائض المتوقع", value=f"{net_surplus:,.0f} ريال")
     else:
-        c3.metric(label="🔴 العجز المالي", value=f"{net_surplus:,.0f} ريال")
+        c3.metric(label="🔴 العجز المالي المكتشف", value=f"{net_surplus:,.0f} ريال")
         
     st.write("---")
     
-    # ميزة وسادة الأمان المستقطعة بصرياً
-    st.info(f"🛡️ **رصيد الأمان المالي الحالي (وسادة الطوارئ):** تم تأمين **{buffer_extracted:,.0f} ريال** من دخلك المتغير لضمان استقرارك.")
+    # عرض معلومات وسادة الطوارئ الآمنة
+    if buffer_extracted > 0:
+        st.info(f"🛡️ **رصيد الأمان المالي الحالي (وسادة الطوارئ):** تم تأمين **{buffer_extracted:,.0f} ريال** تلقائياً من دخل العمل الحر لحمايتك من تقلبات السوق.")
     
-    # 3. تنبؤات الفائض المالي الذكية
-    st.success(f"📢 **بشرى سارة:** متبقي لك **{tabby_months} أشهر** فقط وتنتهي من قسط تابي! هذا هو الفائض المتوقع في ميزانيتك القادمة.")
-    
+    # توليد التنبؤات والاشعارات الذكية ديناميكياً لكل قسط مضاف
+    st.subheader("📢 التنبؤات والاشعارات الذكية")
+    if len(st.session_state.installments) > 0:
+        for inst in st.session_state.installments:
+            if inst['amount'] > 0:
+                st.success(f"💡 **بشرى سارة:** متبقي لك **{inst['months']} أشهر** فقط وتنتهي تماماً من (**{inst['name']}**) بقيمة {inst['amount']:,.0f} ريال شهرياً!")
+    else:
+        st.success("🎉 ميزانيتك حرة تماماً من أي أقساط مجدولة حالياً!")
+        
     st.write("---")
     
-    # 4. الرسوم البيانية التفاعلية (مقارنة الدخل والمصارف والصافي)
-    st.subheader("📈 مقارنة أداء الصرف والدخل")
-    data = {
-        'الفئة': ['الدخل الثابت', 'الدخل المتغير (الصافي)', 'المصاريف والالتزامات', 'صافي الفائض الشهرى'],
-        'المبلغ (ريال)': [fixed_income, net_variable_income, total_expenses, max(0, net_surplus)]
-    }
-    df = pd.DataFrame(data)
+    # بناء الرسم البياني التفاعلي المتحرك الذي يعكس التحديثات فوراً
+    st.subheader("📈 مقارنة أداء الصرف والدخل التفاعلية")
     
-    fig = px.bar(df, x='الفئة', y='المبلغ (ريال)', color='الفئة', text_auto=True, title="الوضع المالي التقديري للشهر الحالي")
-    st.plotly_chart(fig, use_container_width=True)
+    chart_data = []
+    for item in st.session_state.fixed_incomes:
+        if item['amount'] > 0: chart_data.append({'الفئة': item['name'], 'المبلغ (ريال)': item['amount'], 'النوع': 'الدخول'})
+    if net_variable > 0: 
+        chart_data.append({'الفئة': 'صافي الدخول المتغيرة', 'المبلغ (ريال)': net_variable, 'النوع': 'الدخول'})
+    for item in st.session_state.installments:
+        if item['amount'] > 0: chart_data.append({'الفئة': item['name'], 'المبلغ (ريال)': item['amount'], 'النوع': 'المصاريف'})
+    chart_data.append({'الفئة': 'المصاريف العامة الأخرى', 'المبلغ (ريال)': other_expenses, 'النوع': 'المصاريف'})
+    if net_surplus > 0:
+        chart_data.append({'الفئة': 'صافي الفائض المالي الشهرى', 'المبلغ (ريال)': net_surplus, 'النوع': 'الفائض'})
+        
+    df = pd.DataFrame(chart_data)
+    
+    if not df.empty:
+        fig = px.bar(df, x='الفئة', y='المبلغ (ريال)', color='النوع', text_auto=True,
+                     title="تحليل شامل وتفاعلي لمصادر الدخل وأوجه الصرف الحالية")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.write("الرجاء إدخال بيانات مالية لاستعراض المخطط البياني التفاعلي.")
