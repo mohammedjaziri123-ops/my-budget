@@ -6,9 +6,9 @@ import pandas as pd
 import streamlit as st
 
 # إعدادات الصفحة الأساسية وتصميم الواجهة باسم التطبيق My Budget
-st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الأبدي 22.0", page_icon="💰", layout="wide")
+st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الأبدي", page_icon="💰", layout="wide")
 
-# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق شبكة التقويم الاحترافي وجدول التراجع
+# تطبيق نمط الاتجاه من اليمين لليسار وتنسيق الجدول والخطوط إنجليزية الأرقام
 st.markdown("""
     <style>
     .block-container { text-align: right; direction: rtl; padding-top: 1rem !important; }
@@ -17,68 +17,16 @@ st.markdown("""
     [data-testid="stSidebar"] { text-align: right; direction: rtl; background-color: #1A1A1A; }
     .login-box { background-color: #262626; padding: 30px; border-radius: 15px; border: 1px solid #404040; margin-top: 20px; }
     
-    /* هندسة شبكة التقويم المالي الذكي المستوحى بالكامل من صورتك المقترحة */
-    .grid-container {
-        display: grid !important;
-        grid-template-columns: repeat(7, 1fr) !important;
-        gap: 8px !important;
-        direction: rtl !important;
-        margin-top: 10px !important;
-        margin-bottom: 20px !important;
-    }
-    .grid-header {
-        background-color: #1A1A1A;
-        padding: 10px 2px;
-        text-align: center;
-        font-weight: bold;
-        border-radius: 6px;
-        color: #4CAF50;
-        font-size: 14px;
-        border: 1px solid #333;
-    }
-    .grid-day-card {
-        background-color: #262626;
-        border: 1px solid #444;
-        border-radius: 8px;
-        padding: 8px;
-        min-height: 120px;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
-        box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
-    }
-    .day-number {
-        font-weight: bold;
-        font-size: 15px;
-        color: #FFFFFF;
-        text-align: right;
-        font-family: 'Arial', sans-serif;
-        margin-bottom: 4px;
-    }
-    .inner-box-inc {
-        background-color: rgba(76, 175, 80, 0.1);
-        border: 1px solid rgba(76, 175, 80, 0.3);
-        border-radius: 5px;
-        padding: 4px 2px;
-        color: #4CAF50;
-        font-size: 11px;
-        text-align: center;
-        font-weight: bold;
-        margin-bottom: 4px;
-    }
-    .inner-box-exp {
-        background-color: rgba(244, 67, 54, 0.1);
-        border: 1px solid rgba(244, 67, 54, 0.3);
-        border-radius: 5px;
-        padding: 4px 2px;
-        color: #F44336;
-        font-size: 11px;
-        text-align: center;
-        font-weight: bold;
-    }
-    .grid-empty-card { background-color: transparent !important; border: none !important; box-shadow: none !important; }
+    /* 🌟 تصميم الجدول الصارم لضمان المظهر الأفقي للتقويم على الجوال */
+    .html-cal-table { width: 100% !important; border-collapse: collapse !important; direction: rtl !important; margin-top: 15px; margin-bottom: 20px; }
+    .html-cal-table th { background-color: #1A1A1A !important; color: #4CAF50 !important; font-weight: bold !important; text-align: center !important; padding: 8px 2px !important; border: 1px solid #333 !important; font-size: 13px !important; }
+    .html-cal-table td { width: 14.28% !important; background-color: #262626 !important; border: 1px solid #444 !important; vertical-align: top !important; padding: 6px !important; height: 110px !important; }
     
-    /* تصميم جدول الكروت الأسبوعي */
+    .day-num-style { font-weight: bold !important; font-size: 14px !important; color: #FFFFFF !important; text-align: right !important; font-family: 'Arial', sans-serif !important; margin-bottom: 4px; }
+    .box-inc-style { background-color: rgba(76, 175, 80, 0.12) !important; border: 1px solid rgba(76, 175, 80, 0.3) !important; border-radius: 4px !important; padding: 3px 1px !important; color: #4CAF50 !important; font-size: 10px !important; text-align: center !important; font-weight: bold !important; margin-bottom: 4px; }
+    .box-exp-style { background-color: rgba(244, 67, 54, 0.12) !important; border: 1px solid rgba(244, 67, 54, 0.3) !important; border-radius: 4px !important; padding: 3px 1px !important; color: #F44336 !important; font-size: 10px !important; text-align: center !important; font-weight: bold !important; }
+    
+    /* تنسيق الكروت الأسبوعية المصطفة */
     .week-row-grid { display: grid; grid-template-columns: 1.5fr 2fr 2fr 2fr; gap: 8px; direction: rtl; margin-bottom: 6px; align-items: center; }
     .week-header-cell { background-color: #1A1A1A; padding: 10px; text-align: center; font-weight: bold; border-radius: 6px; color: #4CAF50; border: 1px solid #333; font-size: 13px; }
     .week-cell-day { background-color: #262626; padding: 10px; text-align: center; font-weight: bold; border: 1px solid #444; border-radius: 8px; color: #BBBBBB; font-size: 13px; }
@@ -88,7 +36,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# ربط التطبيق بتاريخ اليوم الفعلي لعام 2026م
 current_date = datetime.now()
 current_year_str = str(current_date.year)
 current_total_months = current_date.year * 12 + current_date.month
@@ -102,23 +49,19 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS financial_data 
                  (email TEXT, category TEXT, name TEXT, amount REAL, remaining_months INTEGER, start_month_val INTEGER, year_month TEXT, PRIMARY KEY (email, category, name, year_month))''')
     
-    # تفادي التعارض وعمل ترقية مرنة للملفات القديمة المخزنة على السيرفر لضمان إضافة حقل الـ id
+    # ضمان وجود معرف تلقائي غير مقيد لمنع الكتابة فوق العمليات اليومية المتعددة
     try:
         c.execute("SELECT id FROM daily_income_records LIMIT 1")
     except sqlite3.OperationalError:
         c.execute("DROP TABLE IF EXISTS daily_income_records")
-        
     try:
         c.execute("SELECT id FROM daily_expense_records LIMIT 1")
     except sqlite3.OperationalError:
         c.execute("DROP TABLE IF EXISTS daily_expense_records")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS daily_income_records 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, date TEXT, source TEXT, amount REAL)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS daily_expense_records 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, date TEXT, item TEXT, amount REAL)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS flexible_goals_v2 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, type TEXT, name TEXT, amount REAL, target_date TEXT, is_done INTEGER DEFAULT 0)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS daily_income_records (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, date TEXT, source TEXT, amount REAL)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS daily_expense_records (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, date TEXT, item TEXT, amount REAL)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS flexible_goals_v2 (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, type TEXT, name TEXT, amount REAL, target_date TEXT, is_done INTEGER DEFAULT 0)''')
     conn.commit()
     conn.close()
 
@@ -203,16 +146,6 @@ def get_user_data_monthly(email, category, ym_str):
     conn.close()
     return df.to_dict(orient='records')
 
-def clear_user_data(email):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM financial_data WHERE email=?", (email,))
-    c.execute("DELETE FROM daily_income_records WHERE email=?", (email,))
-    c.execute("DELETE FROM daily_expense_records WHERE email=?", (email,))
-    c.execute("DELETE FROM flexible_goals_v2 WHERE email=?", (email,))
-    conn.commit()
-    conn.close()
-
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'user_email' not in st.session_state: st.session_state.user_email = ""
 
@@ -263,13 +196,11 @@ menu_selection = st.sidebar.radio(
     ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "🗓️ التقويم والحصيلة الشهرية", "📌 الأهداف والالتزامات المرنة", "📊 لوحة التحليلات والاتجاهات"]
 )
 
-# جلب السجلات الحية بشكل آمن ومسبق طوال فترات التطبيق
+# جلب معطيات الجداول التاريخية المجردة الحقيقية 100%
 df_daily_inc_records = get_daily_income_records(user_key)
 df_daily_exp_records = get_daily_expense_records(user_key)
 all_fixed_data_df = get_all_fixed_data_for_user(user_key, "fixed")
 all_installments_df = get_all_fixed_data_for_user(user_key, "installments")
-
-fixed_incomes = all_fixed_data_df.to_dict(orient='records') if not all_fixed_data_df.empty else [{"name": "الراتب الأساسي", "amount": 10000.0, "year_month": this_month_ym}]
 
 if current_date.month in [1, 2, 3]: q_name, q_months = "الربع الأول (Q1)", [f"{current_year_str}-01", f"{current_year_str}-02", f"{current_year_str}-03"]
 elif current_date.month in [4, 5, 6]: q_name, q_months = "الربع الثاني (Q2)", [f"{current_year_str}-04", f"{current_year_str}-05", f"{current_year_str}-06"]
@@ -295,7 +226,7 @@ if menu_selection == "🛒 المصروفات والدخل اليومي":
         if st.button("💾 حفظ الدخل اليومي"):
             if inc_amount > 0:
                 save_daily_income(user_key, today_stamp, inc_source, inc_amount)
-                st.success("✅ تم حفظ العملية بنجاح!")
+                st.success("✅ تم حفظ العملية!")
                 st.session_state.inc_amount_val = 0.0
                 st.session_state.inc_src_val = "عمل حر"
                 st.rerun()
@@ -303,7 +234,6 @@ if menu_selection == "🛒 المصروفات والدخل اليومي":
         st.write("")
         recent_inc = get_recent_daily_records(user_key, "daily_income_records", today_stamp)
         if recent_inc:
-            st.caption("↩️ عمليات الدخل المحفوظة اليوم (يمكنك حذف أي خطأ فوراً):")
             for rec in recent_inc:
                 col_t1, col_t2 = st.columns([3, 1])
                 col_t1.text(f"• {rec['label']}: {rec['amount']:,.0f} ريال")
@@ -319,7 +249,7 @@ if menu_selection == "🛒 المصروفات والدخل اليومي":
         if st.button("💾 حفظ المصروف اليومي"):
             if exp_amount > 0:
                 save_daily_expense(user_key, today_stamp, exp_item, exp_amount)
-                st.success("✅ تم حفظ العملية بنجاح!")
+                st.success("✅ تم حفظ العملية!")
                 st.session_state.exp_amount_val = 0.0
                 st.session_state.exp_itm_val = "مشتريات"
                 st.rerun()
@@ -327,7 +257,6 @@ if menu_selection == "🛒 المصروفات والدخل اليومي":
         st.write("")
         recent_exp = get_recent_daily_records(user_key, "daily_expense_records", today_stamp)
         if recent_exp:
-            st.caption("↩️ عمليات الصرف المحفوظة اليوم (يمكنك حذف أي خطأ فوراً):")
             for rec in recent_exp:
                 col_t1, col_t2 = st.columns([3, 1])
                 col_t1.text(f"• {rec['label']}: {rec['amount']:,.0f} ريال")
@@ -337,74 +266,94 @@ if menu_selection == "🛒 المصروفات والدخل اليومي":
 
 # --- 2. الالتزامات والأقساط ---
 elif menu_selection == "💳 الالتزامات والأقساط":
-    st.header(f"💳 الالتزامات الثابتة النشطة")
+    st.header(f"💳 قسم إدارة الالتزامات لهذا الشهر")
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("💰 الدخول الثابتة (مستمرة طوال العام)")
+        st.subheader("💰 الدخول الثابتة لهذا الشهر")
         fixed_db = get_user_data_monthly(user_key, "fixed", this_month_ym)
-        fixed_incomes = fixed_db if fixed_db else [{"name": "الراتب الأساسي", "amount": 10000.0}]
-        for i, inc in enumerate(fixed_incomes):
+        for i in range(max(len(fixed_db) + 1, 1)):
             c1, c2 = st.columns([2, 1])
-            name = c1.text_input(f"الاسم {i+1}", value=inc['name'], key=f"f_n_{i}")
-            amount = c2.number_input(f"المبلغ {i+1}", min_value=0.0, value=float(inc['amount']), key=f"f_v_{i}")
-            save_user_item_monthly(user_key, "fixed", name, amount, ym_str=this_month_ym)
-        if st.button("➕ أضف دخل ثابت جديد"):
-            save_user_item_monthly(user_key, "fixed", f"دخل جديد {len(fixed_incomes)+1}", 0.0, ym_str=this_month_ym)
+            default_name = fixed_db[i]['name'] if i < len(fixed_db) else f"دخل ثابت {i+1}"
+            default_amt = float(fixed_db[i]['amount']) if i < len(fixed_db) else 0.0
+            name = c1.text_input(f"اسم الدخل الثابت {i+1}", value=default_name, key=f"f_n_{i}")
+            amount = c2.number_input(f"المبلغ {i+1}", min_value=0.0, value=default_amt, key=f"f_v_{i}")
+            if amount > 0:
+                save_user_item_monthly(user_key, "fixed", name, amount, ym_str=this_month_ym)
+        if st.button("🔄 تحديث وحفظ قائمة الدخول الثابتة"):
+            st.success("تم الحفظ بنجاح لشهرك الحالي!")
             st.rerun()
             
     with col2:
-        st.subheader("📉 الأقساط والالتزامات المؤتمتة زمنياً")
-        current_installments = all_installments_df.to_dict(orient='records') if not all_installments_df.empty else []
-        for i, inst in enumerate(current_installments):
+        st.subheader("📉 الأقساط والالتزامات المحددة بأشهر")
+        inst_db = get_user_data_monthly(user_key, "installments", this_month_ym)
+        for i in range(max(len(inst_db) + 1, 1)):
             c1, c2, c3 = st.columns([2, 1, 1])
-            name = c1.text_input(f"اسم الالتزام {i+1}", value=inst['name'], key=f"in_n_{i}")
-            amount = c2.number_input(f"القسط {i+1}", min_value=0.0, value=float(inst['amount']), key=f"in_v_{i}")
-            months = c3.number_input(f"الأشهر الإجمالية {i+1}", min_value=1, value=int(inst.get('remaining_months', 1)), key=f"in_m_{i}")
-            save_user_item_monthly(user_key, "installments", name, amount, months, inst.get('start_month_val', current_total_months), ym_str=inst['year_month'])
-        if st.button("➕ أضف قسط/التزام شهري جديد"):
-            save_user_item_monthly(user_key, "installments", f"قسط جديد {len(current_installments)+1}", 0.0, 1, current_total_months, ym_str=this_month_ym)
+            default_name = inst_db[i]['name'] if i < len(inst_db) else f"قسط {i+1}"
+            default_amt = float(inst_db[i]['amount']) if i < len(inst_db) else 0.0
+            default_months = int(inst_db[i]['remaining_months']) if i < len(inst_db) else 1
+            name = c1.text_input(f"اسم الالتزام {i+1}", value=default_name, key=f"in_n_{i}")
+            amount = c2.number_input(f"القسط {i+1}", min_value=0.0, value=default_amt, key=f"in_v_{i}")
+            months = c3.number_input(f"أشهر السداد {i+1}", min_value=1, value=default_months, key=f"in_m_{i}")
+            if amount > 0:
+                save_user_item_monthly(user_key, "installments", name, amount, months, current_total_months, ym_str=this_month_ym)
+        if st.button("🔄 تحديث وحفظ الالتزامات والأقساط"):
+            st.success("تم التحديث الزمني بنجاح!")
             st.rerun()
 
-# --- 3. التقويم والحصيلة الشهرية ---
+# ==============================================================================
+# 🗓️ 3. قسم التقويم والحصيلة الشهرية (🔥 قفل برمجياً على هيئة جدول HTML حقيقي صارم للـ 7 أيام)
+# ==============================================================================
 elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
     st.header("🗓️ لوحة التقويم والحصيلة الشهرية المخصصة")
     st.write("---")
+    
     months_arabic_names = {"01": "يناير", "02": "فبراير", "03": "مارس", "04": "أبريل", "05": "مايو", "06": "يونيو", "07": "يوليو", "08": "أغسطس", "09": "سبتمبر", "10": "أكتوبر", "11": "نوفمبر", "12": "ديسمبر"}
-    selected_month_code = st.selectbox("📅 اختر الشهر لاستعراض تقويمه المالي وحصيلته بدقة:", options=list(months_arabic_names.keys()), index=int(current_date.month) - 1, format_func=lambda x: months_arabic_names[x])
+    selected_month_code = st.selectbox("📅 اختر الشهر المطلوب لاستعراض التقويم المالي الفعلي:", options=list(months_arabic_names.keys()), index=int(current_date.month) - 1, format_func=lambda x: months_arabic_names[x])
     selected_ym_str = f"{current_year_str}-{selected_month_code}"
     selected_month_val = int(current_year_str) * 12 + int(selected_month_code)
     
-    sel_fixed_inc_total = all_fixed_data_df['amount'].sum() if not all_fixed_data_df.empty else 0.0
+    # حساب الحصيلة الحقيقية المجردة للشهر المختار دون أي فرضيات
+    sel_fixed_db = get_user_data_monthly(user_key, "fixed", selected_ym_str)
+    sel_fixed_inc_total = sum(item['amount'] for item in sel_fixed_db)
     
     sel_inst_total = 0.0
     if not all_installments_df.empty:
         for idx, inst_row in all_installments_df.iterrows():
-            s_m = inst_row['start_month_val']
-            duration = inst_row['remaining_months']
-            if s_m <= selected_month_val < (s_m + duration):
+            if inst_row['year_month'] == selected_ym_str:
                 sel_inst_total += inst_row['amount']
                 
-    cal = calendar.Calendar(firstweekday=5)
+    cal = calendar.Calendar(firstweekday=5) # يبدأ السبت
     month_days = cal.monthdayscalendar(int(current_year_str), int(selected_month_code))
     
-    st.markdown('<div class="grid-container">', unsafe_allow_html=True)
-    for day_name in ["السبت", "الأحد", "الإثنين", "الثلاثاء", "أربعاء", "الخميس", "الجمعة"]: st.markdown(f'<div class="grid-header">{day_name}</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 🌟 بناء جدول HTML صلب ومقاوم لانهيار شاشات الجوال ليعرض الـ 7 أيام بصف أفقي واحد
+    html_code = '<table class="html-cal-table">'
+    html_code += '<tr><th>السبت</th><th>الأحد</th><th>الإثنين</th><th>الثلاثاء</th><th>الأربعاء</th><th>الخميس</th><th>الجمعة</th></tr>'
     
-    st.markdown('<div class="grid-container">', unsafe_allow_html=True)
     for week in month_days:
+        html_code += '<tr>'
         for day in week:
-            if day == 0: st.markdown('<div class="grid-day-card grid-empty-card"></div>', unsafe_allow_html=True)
+            if day == 0:
+                html_code += '<td style="background-color: transparent !important; border: none !important;"></td>'
             else:
                 target_date_str = f"{selected_ym_str}-{day:02d}"
                 day_inc = df_daily_inc_records[df_daily_inc_records['date'] == target_date_str]['amount'].sum() if not df_daily_inc_records.empty else 0.0
                 day_exp = df_daily_exp_records[df_daily_exp_records['date'] == target_date_str]['amount'].sum() if not df_daily_exp_records.empty else 0.0
                 
-                inc_t = f"المدخول: {day_inc:,.0f} ريال"
-                exp_t = f"المصروف: {day_exp:,.0f} ريال"
-                st.markdown(f'<div class="grid-day-card"><div class="day-number">{day}</div><div class="inner-box-inc">{inc_t}</div><div class="inner-box-exp">{exp_t}</div></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+                inc_text = f"+{day_inc:,.0f} ريال" if day_inc > 0 else "---"
+                exp_text = f"-{day_exp:,.0f} ريال" if day_exp > 0 else "---"
+                
+                html_code += f"""
+                    <td>
+                        <div class="day-num-style">{day}</div>
+                        <div class="box-inc-style">المدخول: {inc_text}</div>
+                        <div class="box-exp-style">المصروف: {exp_text}</div>
+                    </td>
+                """
+        html_code += '</tr>'
+    html_code += '</table>'
+    
+    st.markdown(html_code, unsafe_allow_html=True)
     
     sel_daily_inc = df_daily_inc_records[(df_daily_inc_records['date'] >= f"{selected_ym_str}-01") & (df_daily_inc_records['date'] <= f"{selected_ym_str}-31")]['amount'].sum() if not df_daily_inc_records.empty else 0.0
     sel_daily_exp = df_daily_exp_records[(df_daily_exp_records['date'] >= f"{selected_ym_str}-01") & (df_daily_exp_records['date'] <= f"{selected_ym_str}-31")]['amount'].sum() if not df_daily_exp_records.empty else 0.0
@@ -414,10 +363,10 @@ elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
     tot_wallet = tot_inc - tot_exp
     
     st.write("---")
-    st.subheader(f"📊 الخلاصة والتحليلات الصافية لشهر: {months_arabic_names[selected_month_code]}")
+    st.subheader(f"📊 الحصيلة الصافية التاريخية الحقيقية لشهر: {months_arabic_names[selected_month_code]}")
     cb1, cb2, cb3 = st.columns(3)
     cb1.info(f"💵 **إجمالي مدخول الشهر الفعلي:**\n\n {tot_inc:,.0f} ريال")
-    cb2.warning(f"💸 **إجمالي المصروفات والالتزامات (المفلترة زمنياً):**\n\n {tot_exp:,.0f} ريال")
+    cb2.warning(f"💸 **إجمالي المصروفات والالتزامات:**\n\n {tot_exp:,.0f} ريال")
     if tot_wallet >= 0: cb3.success(f"👛 **صافي المحفظة (المتبقي لك):**\n\n {tot_wallet:,.0f} ريال")
     else: cb3.error(f"🚨 **صافي المحفظة (عجز مالي):**\n\n {tot_wallet:,.0f} ريال")
 
@@ -434,7 +383,7 @@ elif menu_selection == "📌 الأهداف والالتزامات المرنة"
         if st.button("💾 حفظ الالتزام الجانبي"):
             if d_name and d_amount > 0:
                 add_flexible_item_v2(user_key, "debt", d_name, d_amount, d_date_str)
-                st.success("✅ تم الحفظ!")
+                st.success("✅ تم حفظ الدين الجانبي!")
                 st.rerun()
     with col_wishes:
         st.subheader("🎯 قائمة المشتريات والرغبات المستقبلية")
@@ -444,10 +393,10 @@ elif menu_selection == "📌 الأهداف والالتزامات المرنة"
         if st.button("💾 حفظ وإدراج تحت المراقبة الزمنية"):
             if w_name and w_amount > 0:
                 add_flexible_item_v2(user_key, "wish", w_name, w_amount, w_date_str)
-                st.success("✅ تم التوثيق تحت المراقبة الذكية!")
+                st.success("✅ تم توثيق السلعة في قائمة الرغبات!")
                 st.rerun()
 
-# --- 5. لوحة التحليلات والاتجاهات ---
+# --- 5. لوحة التحليلات والاتجاهات (تجميع تاريخي خالص خالي من التوقعات تماماً) ---
 elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     st.header("📊 لوحة تحليلات الفترات الزمنية والاتجاهات الفعليّة")
     st.write("---")
@@ -489,49 +438,47 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
             """, unsafe_allow_html=True)
             
     st.write("---")
-    st.subheader("📊 إجمالي الحصاد المالي الفعلي لهذا الأسبوع")
+    st.subheader("📊 إجمالي الحصاد المالي الفعلي لآخر 7 أيام")
     col_w1, col_w2, col_w3 = st.columns(3)
-    col_w1.info(f"💵 **إجمالي الدخل لهذا الأسبوع:**\n\n {total_weekly_inc_sum:,.0f} ريال")
-    col_w2.warning(f"💸 **إجمالي الصرف لهذا الأسبوع:**\n\n {total_weekly_exp_sum:,.0f} ريال")
+    col_w1.info(f"💵 **إجمالي الدخل المجمع للأسبوع:**\n\n {total_weekly_inc_sum:,.0f} ريال")
+    col_w2.warning(f"💸 **إجمالي الصرف المجمع للأسبوع:**\n\n {total_weekly_exp_sum:,.0f} ريال")
     weekly_net_rem = total_weekly_inc_sum - total_weekly_exp_sum
-    if weekly_net_rem >= 0: col_w3.success(f"👛 **صافي المتبقي لك هذا الأسبوع:**\n\n {weekly_net_rem:,.0f} ريال")
-    else: col_w3.error(f"🚨 **صافي العجز المالي هذا الأسبوع:**\n\n {weekly_net_rem:,.0f} ريال")
+    if weekly_net_rem >= 0: col_w3.success(f"👛 **صافي متبقي الأسبوع الفعلي:**\n\n {weekly_net_rem:,.0f} ريال")
+    else: col_w3.error(f"🚨 **عجز الأسبوع الفعلي:**\n\n {weekly_net_rem:,.0f} ريال")
         
     st.write("---")
     t_q, t_y = st.tabs(["📐 الحصيلة التراكمية لربع السنة الحالي", "🎆 السجل التاريخي للسنة كاملة"])
+    
     with t_q:
-        st.write(f"### 📐 الحصيلة التراكمية الفعلية لـ {q_name}")
-        q_f_inc = all_fixed_data_df['amount'].sum() * len(q_months) if not all_fixed_data_df.empty else 0.0
-        q_f_exp = 0.0
-        if not all_installments_df.empty:
-            for q_m in q_months:
-                q_m_val = int(q_m.split('-')[0]) * 12 + int(q_m.split('-')[1])
-                for idx, r_i in all_installments_df.iterrows():
-                    if r_i['start_month_val'] <= q_m_val < (r_i['start_month_val'] + r_i['remaining_months']):
-                        q_f_exp += r_i['amount']
+        st.write(f"### 📐 الحصيلة التراكمية التاريخية لـ {q_name}")
+        # جمع الدخل الثابت المسجل فقط بيدك في شهور الربع الحالي دون أي ضرب أو توقعات
+        q_f_inc = all_fixed_data_df[all_fixed_data_df['year_month'].isin(q_months)]['amount'].sum() if not all_fixed_data_df.empty else 0.0
+        q_f_exp = all_installments_df[all_installments_df['year_month'].isin(q_months)]['amount'].sum() if not all_installments_df.empty else 0.0
+        
         q_d_inc = df_daily_inc_records[df_daily_inc_records['date'].str[:7].isin(q_months)]['amount'].sum() if not df_daily_inc_records.empty else 0.0
         q_d_exp = df_daily_exp_records[df_daily_exp_records['date'].str[:7].isin(q_months)]['amount'].sum() if not df_daily_exp_records.empty else 0.0
+        
         q_tot_income = q_f_inc + q_d_inc
         q_tot_expense = q_f_exp + q_d_exp
+        
         col_q1, col_q2, col_q3 = st.columns(3)
-        col_q1.metric("دخل الربع الفعلي المحقق", f"{q_tot_income:,.0f} ريال")
-        col_q2.metric("مصروفات الربع الفعلية المدفوعة", f"{q_tot_expense:,.0f} ريال")
-        col_q3.metric("صافي الفائض للربع", f"{(q_tot_income - q_tot_expense):,.0f} ريال")
+        col_q1.metric("إجمالي دخل الربع الفعلي المخزن", f"{q_tot_income:,.0f} ريال")
+        col_q2.metric("إجمالي مصروفات الربع الفعلي", f"{q_tot_expense:,.0f} ريال")
+        col_q3.metric("صافي الوفورات الحقيقي للربع", f"{(q_tot_income - q_tot_expense):,.0f} ريال")
+        
     with t_y:
-        st.write(f"### 🎆 السجل التاريخي الفعلي لعام {current_year_str} م")
-        y_f_inc = all_fixed_data_df['amount'].sum() * 12 if not all_fixed_data_df.empty else 0.0
-        y_f_exp = 0.0
-        if not all_installments_df.empty:
-            for m_i in range(1, 13):
-                m_val = int(current_year_str) * 12 + m_i
-                for idx, r_i in all_installments_df.iterrows():
-                    if r_i['start_month_val'] <= m_val < (r_i['start_month_val'] + r_i['remaining_months']):
-                        y_f_exp += r_i['amount']
+        st.write(f"### 🎆 السجل التاريخي الحقيقي المجمع لعام {current_year_str} م كاملة")
+        # جمع التاريخ الفعلي المدخل فقط طوال السنة منذ يناير لضمان انتفاء التنبؤات والافتراضات كلياً
+        y_f_inc = all_fixed_data_df[all_fixed_data_df['year_month'].str.startswith(current_year_str)]['amount'].sum() if not all_fixed_data_df.empty else 0.0
+        y_f_exp = all_installments_df[all_installments_df['year_month'].str.startswith(current_year_str)]['amount'].sum() if not all_installments_df.empty else 0.0
+        
         y_d_inc = df_daily_inc_records[df_daily_inc_records['date'].str.startswith(current_year_str)]['amount'].sum() if not df_daily_inc_records.empty else 0.0
         y_d_exp = df_daily_exp_records[df_daily_exp_records['date'].str.startswith(current_year_str)]['amount'].sum() if not df_daily_exp_records.empty else 0.0
+        
         y_tot_income = y_f_inc + y_d_inc
         y_tot_expense = y_f_exp + y_d_exp
+        
         col_y1, col_y2, col_y3 = st.columns(3)
-        col_y1.metric("إجمالي دخل السنة الفعلي", f"{y_tot_income:,.0f} ريال")
-        col_y2.metric("إجمالي مصروفات السنة الفعلية", f"{y_tot_expense:,.0f} ريال")
-        col_y3.metric("صافي مدخرات السنة المحفوظة", f"{(y_tot_income - y_tot_expense):,.0f} ريال")
+        col_y1.metric("مجموع الدخل التاريخي السنوي", f"{y_tot_income:,.0f} ريال")
+        col_y2.metric("مجموع الإنفاق التاريخي السنوي", f"{y_tot_expense:,.0f} ريال")
+        col_y3.metric("صافي المدخرات الفعلية المحفوظة", f"{(y_tot_income - y_tot_expense):,.0f} ريال")
