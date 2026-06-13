@@ -1,21 +1,11 @@
 import os
-import subprocess
-import sys
 from datetime import datetime
-
-# التثبيت التلقائي للمكتبات لضمان عمل السيرفر بكفاءة عالية وبدون مشاكل
-try:
-    import pandas as pd
-    import plotly.express as px
-    import openpyxl  # مكتبة ضرورية لقراءة ومعالجة ملفات الإكسل
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas", "plotly", "openpyxl"])
-    import pandas as pd
-    import plotly.express as px
-
+import pandas as pd
+import plotly.express as px
+import openpyxl
 import streamlit as st
 
-# إعدادات الصفحة الأساسية وتصميم الواجهة الذكية المتجاوبة باسم التطبيق الجديد
+# إعدادات الصفحة الأساسية وتصميم الواجهة الذكية المتجاوبة باسم التطبيق My Budget
 st.set_page_config(page_title="تطبيق My Budget الاحترافي 3.0", page_icon="💰", layout="wide")
 
 # تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق القوائم الجانبية والأزرار
@@ -155,7 +145,8 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     monthly_var_inc = raw_daily_inc * 30
     
     # استقطاع وسادة الطوارئ الآمنة لحفظ التوازن المالي
-    buffer_extracted = (monthly_var_inc * buffer_percent if 'buffer_percent' in locals() else monthly_var_inc * 0.1)
+    buffer_percent = st.session_state.get('buffer_percent', 10)
+    buffer_extracted = (monthly_var_inc * buffer_percent) / 100
     net_monthly_var = monthly_var_inc - buffer_extracted
     
     # المصروفات اليومية المتغيرة شهرياً
