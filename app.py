@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 # إعدادات الصفحة الأساسية وتصميم الواجهة باسم التطبيق My Budget
-st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الأبدي 21.0", page_icon="💰", layout="wide")
+st.set_page_config(page_title="تطبيق My Budget - رفيقك المالي الأبدي 22.0", page_icon="💰", layout="wide")
 
 # تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق شبكة التقويم الاحترافي وجدول التراجع
 st.markdown("""
@@ -101,6 +101,18 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, password TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS financial_data 
                  (email TEXT, category TEXT, name TEXT, amount REAL, remaining_months INTEGER, start_month_val INTEGER, year_month TEXT, PRIMARY KEY (email, category, name, year_month))''')
+    
+    # تفادي التعارض وعمل ترقية مرنة للملفات القديمة المخزنة على السيرفر لضمان إضافة حقل الـ id
+    try:
+        c.execute("SELECT id FROM daily_income_records LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("DROP TABLE IF EXISTS daily_income_records")
+        
+    try:
+        c.execute("SELECT id FROM daily_expense_records LIMIT 1")
+    except sqlite3.OperationalError:
+        c.execute("DROP TABLE IF EXISTS daily_expense_records")
+
     c.execute('''CREATE TABLE IF NOT EXISTS daily_income_records 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, date TEXT, source TEXT, amount REAL)''')
     c.execute('''CREATE TABLE IF NOT EXISTS daily_expense_records 
@@ -251,6 +263,7 @@ menu_selection = st.sidebar.radio(
     ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "🗓️ التقويم والحصيلة الشهرية", "📌 الأهداف والالتزامات المرنة", "📊 لوحة التحليلات والاتجاهات"]
 )
 
+# جلب السجلات الحية بشكل آمن ومسبق طوال فترات التطبيق
 df_daily_inc_records = get_daily_income_records(user_key)
 df_daily_exp_records = get_daily_expense_records(user_key)
 all_fixed_data_df = get_all_fixed_data_for_user(user_key, "fixed")
@@ -385,8 +398,6 @@ elif menu_selection == "🗓️ التقويم والحصيلة الشهرية":
             if day == 0: st.markdown('<div class="grid-day-card grid-empty-card"></div>', unsafe_allow_html=True)
             else:
                 target_date_str = f"{selected_ym_str}-{day:02d}"
-                
-                # 🌟 الجمع التراكمي الذكي لجميع إدخالات الدخل والصرف في نهاية اليوم تلقائياً
                 day_inc = df_daily_inc_records[df_daily_inc_records['date'] == target_date_str]['amount'].sum() if not df_daily_inc_records.empty else 0.0
                 day_exp = df_daily_exp_records[df_daily_exp_records['date'] == target_date_str]['amount'].sum() if not df_daily_exp_records.empty else 0.0
                 
@@ -423,7 +434,7 @@ elif menu_selection == "📌 الأهداف والالتزامات المرنة"
         if st.button("💾 حفظ الالتزام الجانبي"):
             if d_name and d_amount > 0:
                 add_flexible_item_v2(user_key, "debt", d_name, d_amount, d_date_str)
-                st.success("✅ تم حفظ الالتزام الجانبي بنجاح!")
+                st.success("✅ تم الحفظ!")
                 st.rerun()
     with col_wishes:
         st.subheader("🎯 قائمة المشتريات والرغبات المستقبلية")
@@ -460,7 +471,6 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
         t_date_str = t_date.strftime('%Y-%m-%d')
         day_ar = arabic_days.get(t_date.strftime('%A'), t_date.strftime('%A'))
         
-        # 🌟 الجمع التراكمي لآخر 7 أيام ليعرض المجموع الصافي بنهاية اليوم
         day_inc = df_daily_inc_records[df_daily_inc_records['date'] == t_date_str]['amount'].sum() if not df_daily_inc_records.empty else 0.0
         day_exp = df_daily_exp_records[df_daily_exp_records['date'] == t_date_str]['amount'].sum() if not df_daily_exp_records.empty else 0.0
         
