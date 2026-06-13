@@ -9,13 +9,21 @@ import streamlit as st
 # إعدادات الصفحة الأساسية وتصميم الواجهة باسم التطبيق My Budget
 st.set_page_config(page_title="تطبيق My Budget الاحترافي 5.0", page_icon="💰", layout="wide")
 
-# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق القوائم الجانبية والأزرار
+# تطبيق نمط الاتجاه من اليمين لليسار (RTL) وتنسيق الواجهة الرئيسية والنوافذ
 st.markdown("""
     <style>
+    /* تنسيق المحتوى بالكامل ليدعم العربية */
     .block-container { text-align: right; direction: rtl; }
     h1, h2, h3, h4, h5, h6, p, span, label, .stMarkdown { text-align: right; direction: rtl; }
-    .stButton>button { width: 100%; border-radius: 10px; background-color: #2E7D32; color: white; font-weight: bold; }
+    
+    /* تنسيق الأزرار الرئيسية */
+    .stButton>button { width: 100%; border-radius: 10px; background-color: #2E7D32; color: white; font-weight: bold; height: 45px; }
+    
+    /* تنسيق القائمة الجانبية */
     [data-testid="stSidebar"] { text-align: right; direction: rtl; background-color: #1A1A1A; }
+    
+    /* حاوية مخصصة لشاشة الدخول في المنتصف */
+    .login-box { background-color: #262626; padding: 30px; border-radius: 15px; border: 1px solid #404040; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -28,9 +36,7 @@ DB_FILE = "my_budget_storage.db"
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # إنشاء جدول الحسابات
     c.execute('''CREATE TABLE IF NOT EXISTS users (email TEXT PRIMARY KEY, password TEXT)''')
-    # إنشاء جدول البيانات المالية الموحد
     c.execute('''CREATE TABLE IF NOT EXISTS financial_data 
                  (email TEXT, category TEXT, name TEXT, amount REAL, remaining_months INTEGER, PRIMARY KEY (email, category, name))''')
     conn.commit()
@@ -38,7 +44,6 @@ def init_db():
 
 init_db()
 
-# مساعدة برمجية لإدارة جلب وحفظ البيانات من السيرفر
 def get_user_data(email, category):
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query("SELECT name, amount, remaining_months FROM financial_data WHERE email=? AND category=?", conn, params=(email, category))
@@ -60,20 +65,27 @@ def clear_user_data(email):
     conn.commit()
     conn.close()
 
-# --- نظام التحكم بتسجيل الدخول الحقيقي ---
-st.sidebar.title("🔐 حسابك المالي الآمن")
+# تهيئة حالة تسجيل الدخول
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'user_email' not in st.session_state:
     st.session_state.user_email = ""
 
+# ==============================================================================
+# 🔐 شاشة الدخول الرئيسية (تظهر في وسط الصفحة مباشرة عند فتح الموقع)
+# ==============================================================================
 if not st.session_state.logged_in:
-    email_input = st.sidebar.text_input("أدخل بريد الجيميل الخاص بك (Gmail):", placeholder="example@gmail.com")
-    password_input = st.sidebar.text_input("أدخل كلمة المرور الخاصة بك:", type="password")
+    st.title("💰 مرحباً بك في تطبيق My Budget")
+    st.subheader("الرجاء تسجيل الدخول أو إنشاء حساب جديد للوصول إلى ميزانيتك المحفوظة للأبد")
     
-    col_login, col_signup = st.sidebar.columns(2)
+    # صندوق تسجيل الدخول المنسق
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
     
-    if col_login.button("🔑 دخول / تسجيل"):
+    email_input = st.text_input("📧 بريد الجيميل الخاص بك (Gmail):", placeholder="example@gmail.com")
+    password_input = st.text_input("🔑 كلمة المرور:", type="password", placeholder="أدخل كلمة المرور الخاصة بك")
+    
+    st.write("")
+    if st.button("🚀 دخول / تسجيل حساب جديد"):
         if email_input and password_input:
             conn = sqlite3.connect(DB_FILE)
             c = conn.cursor()
@@ -85,73 +97,74 @@ if not st.session_state.logged_in:
                     st.session_state.user_email = email_input
                     st.rerun()
                 else:
-                    st.sidebar.error("كلمة المرور خاطئة")
+                    st.error("⚠️ كلمة المرور التي أدخلتها خاطئة، يرجى المحاولة مرة أخرى.")
             else:
-                # إنشاء حساب جديد تلقائياً للمستخدم إذا لم يكن مسجلاً
+                # إنشاء حساب جديد تلقائياً إذا كان الإيميل يدخل أول مرة
                 c.execute("INSERT INTO users (email, password) VALUES (?, ?)", (email_input, password_input))
                 conn.commit()
                 st.session_state.logged_in = True
                 st.session_state.user_email = email_input
+                st.success("🎉 تم إنشاء حسابك الجديد بنجاح!")
                 st.rerun()
             conn.close()
         else:
-            st.sidebar.error("الرجاء تعبئة البيانات")
-    st.stop()
+            st.error("🛑 فضلاً، قم بتعبئة حقل البريد الإلكتروني وكلمة المرور أولاً.")
+            
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.stop()  # إيقاف تشغيل باقي الموقع حتى يتم تسجيل الدخول بنجاح
 
-else:
-    st.sidebar.success(f"👤 متصل بـ: {st.session_state.user_email}")
-    if st.sidebar.button("🚪 تسجيل الخروج"):
-        st.session_state.logged_in = False
-        st.session_state.user_email = ""
-        st.rerun()
-
-# تحميل البيانات الحية من قاعدة البيانات السحابية الدائمة الخاصة بالمستخدم الحالي
+# ==============================================================================
+# 🔓 واجهة التطبيق الكاملة (تفتح فقط وتظهر القائمة الجانبية بعد تسجيل الدخول)
+# ==============================================================================
 user_key = st.session_state.user_email
 
+# معلومات المستخدم في الشريط الجانبي بعد الدخول
+st.sidebar.success(f"👤 متصل بـ: {st.session_state.user_email}")
+if st.sidebar.button("🚪 تسجيل الخروج"):
+    st.session_state.logged_in = False
+    st.session_state.user_email = ""
+    st.rerun()
+
+st.sidebar.write("---")
+
+# تحميل البيانات الحية من قاعدة البيانات الدائمة للمستخدم
 fixed_db = get_user_data(user_key, "fixed")
 daily_inc_db = get_user_data(user_key, "daily_income")
 daily_exp_db = get_user_data(user_key, "daily_expense")
 installments_db = get_user_data(user_key, "installments")
 
-# تعبئة القيم الافتراضية التفاعلية للمرة الأولى فقط
 fixed_incomes = fixed_db if fixed_db else [{"name": "الراتب الأساسي", "amount": 10000.0}]
 daily_incomes = daily_inc_db if daily_inc_db else [{"name": "أوبر / عمل حر", "amount": 250.0}]
 daily_expenses = daily_exp_db if daily_exp_db else [{"name": "المشتريات اليومية", "amount": 50.0}]
 installments = installments_db if installments_db else [{"name": "قسط تابي", "amount": 400.0, "remaining_months": 4}]
 
-# --- شريط التنقل الجانبي الاحترافي ---
-st.sidebar.title("🎛️ My Budget - القائمة")
+# شريط التنقل الجانبي لأقسام التطبيق
+st.sidebar.title("🎛️ My Budget - الأقسام")
 menu_selection = st.sidebar.radio(
-    "انتقل بين أقسام ميزانيتك المحفوظة تلقائياً:",
+    "انتقل بين أقسام ميزانيتك المحفوظة:",
     ["🛒 المصروفات والدخل اليومي", "💳 الالتزامات والأقساط", "📊 لوحة التحليلات والاتجاهات"]
 )
 
-# حساب الربع السنوي التلقائي لعام 2026 الحالي
 if current_date.month in [1, 2, 3]: q = "الربع الأول (Q1)"
 elif current_date.month in [4, 5, 6]: q = "الربع الثاني (Q2)"
 elif current_date.month in [7, 8, 9]: q = "الربع الثالث (Q3)"
 else: q = "الربع الرابع (Q4)"
 st.sidebar.caption(f"تتبع مالي مستمر لـ: **{q}**")
 
-# ==============================================================================
-# 1. صفحة المصروفات والدخل اليومي
-# ==============================================================================
+# --- 1. صفحة المصروفات والدخل اليومي ---
 if menu_selection == "🛒 المصروفات والدخل اليومي":
     st.header("🛒 قسم المصروفات والدخل اليومي - My Budget")
-    st.caption("🔒 أي رقم يتم تعديله أو إضافته هنا يُحفظ في حسابك على السيرفر فوراً وللأبد.")
+    st.caption("🔒 البيانات هنا تُحفظ في حسابك على السيرفر فوراً وللأبد.")
     st.write("---")
-    
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("💵 مصادر الدخل اليومي (المتغير)")
-        updated_daily_incomes = []
         for i, vinc in enumerate(daily_incomes):
             c1, c2 = st.columns([2, 1])
             name = c1.text_input(f"مصدر الدخل اليومي {i+1}", value=vinc['name'], key=f"d_inc_n_{i}")
             amount = c2.number_input(f"المعدل اليومي {i+1}", min_value=0.0, value=float(vinc['amount']), key=f"d_inc_v_{i}")
             save_user_item(user_key, "daily_income", name, amount)
-            updated_daily_incomes.append({"name": name, "amount": amount})
             
         if st.button("➕ أضف مصدر دخل يومي جديد"):
             save_user_item(user_key, "daily_income", f"مصدر جديد {len(daily_incomes)+1}", 0.0)
@@ -161,25 +174,20 @@ if menu_selection == "🛒 المصروفات والدخل اليومي":
 
     with col2:
         st.subheader("🛍️ المصروفات اليومية المتغيرة")
-        updated_daily_expenses = []
         for i, exp in enumerate(daily_expenses):
             c1, c2 = st.columns([2, 1])
             name = c1.text_input(f"بند المصروف اليومي {i+1}", value=exp['name'], key=f"d_exp_n_{i}")
             amount = c2.number_input(f"الصرف اليومي {i+1}", min_value=0.0, value=float(exp['amount']), key=f"d_exp_v_{i}")
             save_user_item(user_key, "daily_expense", name, amount)
-            updated_daily_expenses.append({"name": name, "amount": amount})
             
         if st.button("➕ أضف بند مصروف يومي جديد"):
             save_user_item(user_key, "daily_expense", f"مصروف جديد {len(daily_expenses)+1}", 0.0)
             st.rerun()
 
-# ==============================================================================
-# 2. صفحة الالتزامات والأقساط
-# ==============================================================================
+# --- 2. صفحة الالتزامات والأقساط ---
 elif menu_selection == "💳 الالتزامات والأقساط":
     st.header("💳 قسم الالتزامات والأقساط - My Budget")
     st.write("---")
-    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -213,18 +221,14 @@ elif menu_selection == "💳 الالتزامات والأقساط":
         st.success("تم مسح بيانات الحساب الحالي بنجاح لإعادة الضبط!")
         st.rerun()
 
-# ==============================================================================
-# 3. صفحة لوحة التحليلات والاتجاهات (تحديث الصيغة المطلوبة في التقرير)
-# ==============================================================================
+# --- 3. صفحة لوحة التحليلات والاتجاهات ---
 elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     st.header("📊 لوحة تحليلات My Budget وتتبع الاتجاهات")
     st.write("---")
     
-    # حساب العمليات المالية الحسابية
     total_fixed_inc = sum(item['amount'] for item in fixed_incomes)
     raw_daily_inc = sum(item['amount'] for item in daily_incomes)
     
-    # تعديل الصيغة المطلوبة لتكون واضحة واحترافية للتقرير البصري لجمع الدخل المتغير
     weekly_var_inc = raw_daily_inc * 7
     monthly_var_inc = raw_daily_inc * 30
     
@@ -240,7 +244,6 @@ elif menu_selection == "📊 لوحة التحليلات والاتجاهات":
     total_expenses = total_installments + monthly_var_exp
     net_surplus = total_income - total_expenses
     
-    # الواجهة البصرية المعدلة حسب الطلب للتجميع الأسبوعي والشهري
     st.subheader("🚨 تقرير تجميع الدخل المتغير")
     col_box1, col_box2 = st.columns(2)
     col_box1.info(f"📊 **مجموع الدخل المتغير الأسبوعي:** {weekly_var_inc:,.0f} ريال")
